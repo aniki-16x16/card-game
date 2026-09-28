@@ -1,122 +1,89 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
+import { useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
+import { Creature } from './Creature'
+import { CardFace } from './Cards'
+import { BattleView } from './BattleView'
+import { SIGILS, deploy, initialDeck, load, makeCard, resolveRound, sigils, startBattle, transfer } from './game'
+import type { Card, Sigil, Unit } from './game'
 import './App.css'
+import './BattleView.css'
 
-function App() {
-  const [count, setCount] = useState(0)
+function Modal({ children, onClose, label, dismissible = true }: { children: ReactNode; onClose: () => void; label: string; dismissible?: boolean }) {
+  const ref = useRef<HTMLDialogElement>(null)
+  useEffect(() => { ref.current?.showModal() }, [])
+  return <dialog ref={ref} className="modal" onCancel={event => { event.preventDefault(); if (dismissible) onClose() }} aria-label={label}>{dismissible && <button className="close" onClick={onClose} aria-label="关闭">×</button>}{children}</dialog>
+}
+export default function App() {
+  const [deck, setDeck] = useState<Card[]>(initialDeck)
+  const [battle, setBattle] = useState(() => startBattle(initialDeck()))
+  const [mode, setMode] = useState<'battle' | 'forge'>('battle')
+  const [engaged, setEngaged] = useState(false)
+  const [selected, setSelected] = useState<string | null>(null)
+  const [inspected, setInspected] = useState<Card | Unit | null>(null)
+  const [rules, setRules] = useState(false)
+  const [reset, setReset] = useState(false)
+  const [notice, setNotice] = useState('')
+  const [donorId, setDonor] = useState<string | null>(null)
+  const [targetId, setTarget] = useState<string | null>(null)
+  const [chosenSigil, setChosenSigil] = useState<Sigil | null>(null)
+  const [removed, setRemoved] = useState<Sigil[]>([])
+  const [pickRole, setPickRole] = useState<'donor' | 'target'>('donor')
+  const [undoDeck, setUndoDeck] = useState<Card[] | null>(null)
+  const [showLog, setShowLog] = useState(false)
+  const [settling, setSettling] = useState(false)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current) }, [])
+  useEffect(() => { if (!notice) return; const timeout = setTimeout(() => setNotice(''), 4200); return () => clearTimeout(timeout) }, [notice])
+  const donor = deck.find(c => c.id === donorId), target = deck.find(c => c.id === targetId)
+  const preview = donor && target && chosenSigil ? transfer(deck, donor.id, target.id, chosenSigil, removed) : null
+  const detail = inspected
+  const detailHp = detail && 'hp' in detail && typeof detail.hp === 'number' ? detail.hp : detail?.health
+  const selectedCard = battle.hand.find(c => c.id === selected)
+  const canForge = !engaged || battle.status !== 'playing'
+  function clearForge() { setDonor(null); setTarget(null); setChosenSigil(null); setRemoved([]); setPickRole('donor') }
+  function restart(cards = deck, encounter = battle.encounter) { setBattle(startBattle(cards, encounter)); setEngaged(false); setSelected(null); setInspected(null); setUndoDeck(null) }
+  function endTurn() {
+    if (settling || battle.status !== 'playing') return
+    setEngaged(true); setSettling(true); setSelected(null); setInspected(null); setUndoDeck(null)
+    timer.current = setTimeout(() => { setBattle(s => resolveRound(s)); setSettling(false) }, 450)
+  }
+  function chooseForgeCard(card: Card) {
+    if (pickRole === 'donor') { setDonor(card.id); setChosenSigil(sigils(card)[0] ?? null); if (targetId === card.id) setTarget(null); setPickRole('target') }
+    else { setTarget(card.id); setRemoved([]); if (donorId === card.id) { setDonor(null); setChosenSigil(null); setPickRole('donor') } }
+  }
+  function doTransfer() {
+    if (!preview || preview.error || !donor || !target || !chosenSigil) return
+    setUndoDeck(deck); setDeck(preview.deck); setBattle(startBattle(preview.deck, battle.encounter)); setEngaged(false)
+    setNotice(`${target.name} 获得「${SIGILS[chosenSigil].name}」，${donor.name} 已被消耗。`); clearForge()
+  }
+  return <div className={`app-shell ${mode === 'battle' ? 'battle-mode' : 'forge-mode'}`}>
+    <header className="topbar"><a className="brand" href="#" onClick={e => e.preventDefault()}><span className="brand-mark">❋</span><span>苔原契约<small>VERDANT PACT</small></span></a>
+      <nav aria-label="主导航"><button className={mode === 'battle' ? 'active' : ''} onClick={() => setMode('battle')}><span>⚔</span> 战场</button><button className={mode === 'forge' ? 'active' : ''} disabled={!canForge || settling} title={canForge ? '改造你的牌组' : '战斗结束后开放'} onClick={() => { setMode('forge'); setSelected(null) }}><span>⌘</span> 印记工坊{!canForge && <small> · 战斗中</small>}</button></nav>
+      <div className="top-actions"><span className="prototype"><i /> 可玩原型 <small>0.1</small></span><button className="icon-button" aria-label="游戏规则" onClick={() => setRules(true)}>?</button><button className="icon-button" aria-label="重新开始冒险" disabled={settling} onClick={() => setReset(true)}>↻</button></div>
+    </header>
+    {notice && <div className="toast" role="status">✦ {notice}</div>}
+    <main>
+      <div className="page-heading"><div><div className="eyebrow">THE WILDS AWAIT</div><h1>{mode === 'battle' ? '雾林边境' : '让印记，生根。'}</h1><p>{mode === 'battle' ? '在荒野中缔结契约，让每一个位置都有意义。' : '献出一个灵魂，将它的力量留在另一个生命中。'}</p></div><div className="journey"><span className="journey-dot done">✓</span><span className="journey-line"/><span className="journey-dot current">{String(battle.encounter).padStart(2, '0')}</span><span className="journey-line"/><span className="journey-dot">❋</span><small>旅程 · 第 {battle.encounter} 场遭遇</small></div></div>
+      {mode === 'battle' ? <BattleView battle={battle} selected={selected} settling={settling} canForge={canForge} onSelect={setSelected} onInspect={setInspected} onEnd={endTurn} onForge={() => { setSelected(null); setMode('forge') }} onRules={() => setRules(true)} onReset={() => setReset(true)} onLog={() => setShowLog(true)} onDeploy={(row, col) => {
+        if (!selectedCard || settling || battle.status !== 'playing') return
+        if (selectedCard.cost > battle.energy) { setNotice('能量不足，试试其他手牌。'); return }
+        setBattle(s => deploy(s, selectedCard.id, row, col)); setEngaged(true); setSelected(null); setUndoDeck(null)
+      }} /> : <div className="forge-layout"><section className="forge-main"><div className="section-label">印记仪式 <span>传承力量，而非次数。</span></div><div className="ritual"><button className={`ritual-slot ${pickRole === 'donor' ? 'picking' : ''}`} onClick={() => setPickRole('donor')}><span className="eyebrow">01 / 献出</span>{donor ? <CardFace onInspect={setInspected} card={donor}/> : <div className="ritual-empty"><span>◇</span><h3>选择供体</h3><p>这张卡将被消耗</p></div>}</button><div className="ritual-arrow"><span>⌘</span><span>→</span></div><button className={`ritual-slot ${pickRole === 'target' ? 'picking' : ''}`} onClick={() => setPickRole('target')}><span className="eyebrow">02 / 继承</span>{target ? <CardFace onInspect={setInspected} card={preview && !preview.error ? preview.deck.find(c => c.id === target.id)! : target}/> : <div className="ritual-empty"><span>❋</span><h3>选择受体</h3><p>保留天生印记和属性</p></div>}</button></div>
+        <div className="ritual-options"><div><h3>传递一个印记</h3><div className="sigil-choices">{donor && sigils(donor).length ? sigils(donor).map(s => <button key={s} className={chosenSigil === s ? 'chosen' : ''} onClick={() => setChosenSigil(s)} title={SIGILS[s].description}>{SIGILS[s].icon} {SIGILS[s].name} <small>{SIGILS[s].weight} 容量</small></button>) : <p className="muted">{donor ? '这张生物没有可传递的印记，请更换供体。' : '从下方牌组选择一张拥有印记的生物。'}</p>}</div></div>{target && <div><h3>外来印记容量 <span>{preview && !preview.error ? load(preview.deck.find(c => c.id === target.id)!) : load(target)} / {target.capacity}</span></h3><div className="capacity-bar">{Array.from({ length: target.capacity }, (_, i) => <span key={i} className={i < (preview && !preview.error ? load(preview.deck.find(c => c.id === target.id)!) : load(target)) ? 'used' : ''}/>)}</div>{target.added.length > 0 && <div className="replace-options"><p>可勾选旧印记，覆盖并释放容量：</p>{target.added.map(s => <label key={s}><input type="checkbox" checked={removed.includes(s)} onChange={e => setRemoved(e.target.checked ? [...removed, s] : removed.filter(x => x !== s))}/>{SIGILS[s].name}（{SIGILS[s].weight}）</label>)}</div>}</div>}</div>
+        <div className="ritual-confirm"><p className={preview?.error ? 'error-text' : ''}>{preview?.error ?? (donor && target && chosenSigil ? `消耗 ${donor.name}，将「${SIGILS[chosenSigil].name}」交给 ${target.name}。` : '选择供体、受体和印记，预览结果后完成转移。')}</p><button className="primary" disabled={!preview || !!preview.error} onClick={doTransfer}>完成印记转移 <span>↗</span></button></div>
+        <div className="collection-heading"><h2>你的牌组 <span>{deck.length} 张</span></h2><div><span>正在选择：{pickRole === 'donor' ? '供体' : '受体'}</span>{undoDeck && <button className="text-button" onClick={() => { setDeck(undoDeck); setBattle(startBattle(undoDeck, battle.encounter)); setUndoDeck(null); clearForge(); setNotice('已撤销上一次转移。') }}>撤销上次转移</button>}</div></div><div className="collection">{deck.map(card => <button key={card.id} className={`collection-card ${donorId === card.id || targetId === card.id ? 'chosen' : ''}`} onClick={() => chooseForgeCard(card)} aria-label={`选为${pickRole === 'donor' ? '供体' : '受体'} ${card.name}`}><CardFace onInspect={setInspected} card={card}/><span className="collection-caption">{donorId === card.id ? '◇ 供体' : targetId === card.id ? '❋ 受体' : `外来印记 ${load(card)} / ${card.capacity}`}</span></button>)}</div>
+      </section><aside className="forge-sidebar"><div className="forge-symbol">⌘</div><span className="eyebrow">A SOUL, REWRITTEN</span><h2>力量有边界，<br/>选择没有次数。</h2><p>每只生物拥有 3 点外来印记容量。你可以反复转移，也可以覆盖旧印记。</p><div className="forge-rules"><p><b>01</b> 天生印记不占容量，不能被覆盖。</p><p><b>02</b> 每次消耗一张供体，只继承选中的一个印记。</p><p><b>03</b> 保留至少 6 张卡，让旅程继续。</p></div><button className="primary" onClick={() => { restart(); setMode('battle') }}>进入战场 <span>→</span></button><small>生命恢复 · 已改造的卡牌保留</small></aside></div>}
+      <footer><span>❋ VERDANT PACT <i> / </i> 苔原契约</span><span>五列阵线 · 双排策略 · 印记传承</span><span>原型数值 · 刷新页面会重置</span></footer>
+    </main>
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+    {detail && <Modal label="生物印记" onClose={() => setInspected(null)}><div className="sigil-detail-heading"><Creature species={detail.species}/><div><span className="eyebrow">生物印记</span><h2>{detail.name}</h2><p>攻击 {detail.attack} · 生命 {detailHp} · 能量 {detail.cost}</p></div></div><div className="sigil-detail-capacity">外来印记容量 <strong>{load(detail)} / {detail.capacity}</strong><span>天生印记不占容量</span></div><div className="sigil-detail-list">{sigils(detail).length ? sigils(detail).map(s => <div key={s}><span>{SIGILS[s].icon}</span><div><h3>{SIGILS[s].name}<small>{detail.added.includes(s) ? '继承 · 占用' : '天生 · 转移占用'} {SIGILS[s].weight} 容量</small></h3><p>{SIGILS[s].description}</p></div></div>) : <p>没有印记。可在战前的印记工坊中继承其他生物的能力。</p>}</div><button className="primary" onClick={() => setInspected(null)}>返回</button></Modal>}
+    {showLog && <Modal label="战斗记录" onClose={() => setShowLog(false)}><h2>战斗记录</h2><ol className="battle-log-dialog">{battle.log.map((line, i) => <li key={i}>{line}</li>)}</ol></Modal>}
+    {rules && <Modal label="游戏规则" onClose={() => setRules(false)}><span className="eyebrow">FIELD MANUAL</span><h2>旅人的战斗手册</h2><div className="rule-block"><h3>01 · 部署与交锋</h3><p>点击手牌，再点击己方空位支付能量部署。结束回合后：敌方预告单位入场 → 我方攻击 → 敌方攻击 → 抽 1 张牌、恢复能量。双方均先前排后后排，每排从左到右结算。预告位置被占时尝试同列另一排；全列已满则放弃入场。</p></div><div className="rule-block"><h3>02 · 前排与后排</h3><p>普通生物只有在前排才能攻击。攻击先命中同列敌方前排，再命中后排；该列全空才扣除对方生命。接替会在交锋开始及每次攻击后检查空位。</p></div><div className="rule-block"><h3>03 · 赢得遭遇</h3><p>敌方生命归零获胜，选一张奖励卡后进入工坊。你的生命归零则失败，可以重试或改造。每场战斗生命重置，卡牌不会因战斗死亡永久丢失。牌库耗尽后，每次抽牌改为受到递增的疲劳伤害（1、2、3…）。</p></div><div className="rule-block"><h3>04 · 能量与印记</h3><p>初始能量上限 3，每两回合增加 1，上限为 6。印记只在战斗外改造，供体会被消耗，受体可以多次继承，只要不超过容量。当前原型使用固定牌序，方便比较不同改造。</p></div><div className="sigil-glossary">{Object.entries(SIGILS).map(([key, s]) => <div key={key}><b>{s.icon} {s.name}<small>{s.weight} 容量</small></b><p>{s.description}</p></div>)}</div><button className="primary" onClick={() => setRules(false)}>准备好了 →</button></Modal>}
+    {reset && <Modal label="重新开始冒险" onClose={() => setReset(false)}><span className="eyebrow">A NEW JOURNEY</span><h2>重新出发？</h2><p className="modal-description">当前战斗、奖励卡和印记改造都会重置，恢复最初的 12 张牌。</p><div className="modal-actions"><button className="secondary" onClick={() => setReset(false)}>继续旅程</button><button className="primary" onClick={() => { const cards = initialDeck(); setDeck(cards); restart(cards, 1); clearForge(); setMode('battle'); setReset(false); setNotice('新的旅程开始了。') }}>重新开始</button></div></Modal>}
+    {battle.status !== 'playing' && mode === 'battle' && <Modal dismissible={battle.status !== 'won'} label={battle.status === 'won' ? '遭遇胜利' : '遭遇失败'} onClose={() => setMode('forge')}><span className="eyebrow">{battle.status === 'won' ? 'THE WILDS REMEMBER' : 'REST, AND RETURN'}</span><h2>{battle.status === 'won' ? '林地为你让路。' : '在雾中暂歇。'}</h2><p className="modal-description">{battle.status === 'won' ? '选择一位新伙伴，然后前往印记工坊，为下一场遭遇做准备。' : '你的契约仍然保留。调整阵型，或到工坊重新组合印记，再试一次。'}</p>{battle.status === 'won' ? <div className="reward-cards">{[4, 7, 6].map((t, i) => { const card = makeCard((t + battle.encounter - 1) % 8, `reward-${battle.encounter}-${i}`); return <button key={card.id} onClick={() => { const next = [...deck, card]; setDeck(next); restart(next, battle.encounter + 1); clearForge(); setMode('forge'); setNotice(`${card.name} 加入了你的牌组。`) }}><CardFace onInspect={setInspected} card={card}/><span>选择伙伴 ＋</span></button> })}</div> : <div className="modal-actions"><button className="secondary" onClick={() => { restart(); setMode('forge') }}>前往工坊</button><button className="primary" onClick={() => restart()}>再次挑战 →</button></div>}</Modal>}
+  </div>
 }
 
-export default App
+
+
+

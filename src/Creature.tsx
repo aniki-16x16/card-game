@@ -1,0 +1,15 @@
+import type { ReactNode } from 'react'
+import type { Species } from './game'
+export function Creature({ species, small = false }: { species: Species; small?: boolean }) {
+  const shapes: Record<Species, ReactNode> = {
+    wolf: <><path d="M38 51 28 17 53 35 67 32 91 14 85 54 71 84 58 98 43 78Z"/><path d="m38 51 18 12 29-9-15 22-12 22-3-24Z" className="shade"/><path d="m40 53 12 4-5 6Zm28 4 13-7-7 12Z" className="eye"/><path d="m53 78 11-2-6 8Z" className="eye"/></>,
+    fox: <><path d="m28 16 29 21 30-21-5 43-23 35-26-31Z"/><path d="m33 60 24 8 25-11-23 37Z" className="shade"/><path d="m37 50 13 7-8 3Zm29 7 13-9-5 12Z" className="eye"/><path d="m54 78 10-1-5 8Z" className="eye"/></>,
+    deer: <><path d="m49 46-9-17-13-7-4-15M38 27 40 9M29 23 16 27M70 46l9-17 13-7 5-15M81 27 80 9M91 23l13 4" fill="none" stroke="currentColor" strokeWidth="5"/><path d="m44 44 15-7 15 7 2 28-17 25-17-25-17-23Z"/><path d="m74 44 22 5-21 17M44 45 21 49l22 17"/><path d="m47 60 8 2-3 5Zm17 2 8-2-4 7Z" className="eye"/></>,
+    owl: <><path d="m30 23 20 9 20-1 20-10-3 44-13 24-15 9-24-21-9-27Z"/><path d="M29 40q17-16 30 8 16-23 31-7L75 68H43Z" className="shade"/><circle cx="44" cy="48" r="6" className="eye"/><circle cx="75" cy="48" r="6" className="eye"/><path d="m54 59 11 0-6 12Z" className="eye"/><path d="m44 76 15 8 14-9" fill="none" stroke="#172b24" strokeWidth="3"/></>,
+    beetle: <><path d="m38 43-19-12m18 27-24 3m28 13L21 90m59-47 19-12M81 58l24 3M77 74l22 16M49 25 40 11m29 14 10-14" fill="none" stroke="currentColor" strokeWidth="5"/><ellipse cx="60" cy="59" rx="25" ry="34"/><path d="M60 27v66M37 47h46" fill="none" stroke="#1a3026" strokeWidth="3"/><path d="M45 34q15-27 30 0"/></>,
+    moth: <><path d="M55 43Q12 3 15 44q3 24 37 19Q19 69 31 96l26-22Zm10 0Q108 3 105 44q-3 24-37 19 33 6 21 33L63 74Z"/><path d="m57 33 7 0 3 46-7 17-6-18Z" className="shade"/><path d="M58 35 46 17m16 18 12-18" stroke="currentColor" strokeWidth="2"/><circle cx="34" cy="44" r="8" className="shade"/><circle cx="87" cy="44" r="8" className="shade"/></>,
+    bear: <><circle cx="32" cy="31" r="13"/><circle cx="86" cy="31" r="13"/><path d="m34 26 49 1 12 35-12 27-24 10-27-13-9-24Z"/><path d="m46 63 26-1 10 18-22 13-23-12Z" className="shade"/><path d="m49 69 21 0-10 12Z" className="eye"/><path d="m35 47 15 5-9 5Zm34 5 15-5-7 10Z" className="eye"/></>,
+    heron: <><path d="m75 19 12 13 22 7-27 5-9 21 5 16-33 11-26-22 26-8 17-8 3-20Z"/><path d="m24 69 42-9-20 24Z" className="shade"/><path d="M55 87 47 108m22-23 5 23" stroke="currentColor" strokeWidth="3"/><circle cx="78" cy="32" r="3" className="eye"/></>,
+  }
+  return <svg viewBox="0 0 120 120" className={`creature ${species} ${small ? 'small' : ''}`} aria-hidden="true"><circle cx="60" cy="60" r="47" className="halo"/><path d="M9 60h102M60 10v100" className="guide"/>{shapes[species]}</svg>
+}

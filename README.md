@@ -1,32 +1,41 @@
-# React + TypeScript + Vite
+# 苔原契约 · Verdant Pact
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React 19 + TypeScript + Vite 构建的单人卡牌 Web 原型。无需后端。深苔绿战术桌面、原创 SVG 生物徽记，适配桌面和窄屏。
 
-Currently, two official plugins are available:
+## 运行
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```sh
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+```sh
+npm test       # Node.js 22.6+，核心战斗和印记规则测试
+npm run build # TypeScript 检查及生产构建
+npm run lint
+```
+
+## 试玩
+
+- 选择手牌，再点击己方空位部署。能量每回合恢复，起始上限 3，每两回合增加 1，最高 6。
+- 战场占据屏幕中央，手牌在底部居中，必要状态与操作位于两侧。右键手牌或场上生物可查看印记说明；关闭说明会保留当前选牌。触屏可选择手牌后使用“查看印记”，场上卡片也支持点击查看。
+- 五列、双方各前后两排。普通生物在前排攻击；后排使用远射、鼓舞、接替等能力。
+- 结束回合：预告敌人入场 → 我方前排、后排从左到右攻击 → 敌方同样结算 → 抽牌与恢复能量。
+- 攻击优先命中同列前排，其次后排，空列才直接扣对方生命。双方生命独立，每场重置。
+- 获胜选择一张奖励卡，前往工坊改造后进入下一场；失败可重试或改造。
+- 战前/战后工坊中选择供体、受体和一个印记，供体被消耗。外来印记容量为 3，天生印记不占容量。允许反复转移和覆盖旧印记，牌组至少保留 6 张。进入战场前可撤销上次转移。
+- 归魂返回手牌，重新召唤仍需付费；牌库耗尽后抽牌改为递增疲劳伤害。
+
+## 原型范围
+
+8 种生物、7 种印记、12 张初始牌组、固定牌序与敌方入场计划。数值为试验值，未做长期平衡。使用能量付费，无战斗献祭、地图或存档；刷新页面会重置。胜利后的遭遇持续推进，敌方生命随场次提高。Google Fonts 不可用时使用本机字体。
+
+## 文件
+
+- `src/game.ts`：卡牌模板、印记权重、战斗状态及纯规则函数。调整数值从此处开始。
+- `src/App.tsx`：战斗界面、印记工坊、奖励和规则手册。
+- `src/BattleView.tsx`、`src/BattleView.css`：全屏战斗布局与操作。
+- `src/Cards.tsx`：共享卡面和右键查看入口。
+- `src/Creature.tsx`：原创 SVG 生物徽记。
+- `src/App.css`：页面和响应式样式。
+- `tests/game.test.mjs`：容量覆盖、重复转移、战斗站位、归魂、胜负与疲劳测试。
