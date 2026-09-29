@@ -103,7 +103,7 @@ export function BattleView(props: Props) {
       <Life value={battle.enemyHp} max={20 + battle.encounter * 4} enemy />
       <div className="combat-round"><span>回合</span><strong>{String(battle.round).padStart(2, '0')}</strong><span>{settling ? '交锋结算中' : '你的部署阶段'}</span></div>
       <Life value={battle.playerHp} max={24} />
-      <small className="map-seed">地图种子 {battle.mapSeed}</small><div className="rail-menu"><button onClick={props.onRules}>游戏规则</button><button onClick={props.onLog}>战斗记录</button><button disabled={settling} onClick={props.onReset}>重新开始</button></div>
+      <small className="map-seed">地图种子 {battle.mapSeed}</small><div className="rail-menu"><a href="/creatures" target="_blank" rel="noopener noreferrer" title="在新标签页打开生物图鉴">生物图鉴 ↗</a><button onClick={props.onRules}>游戏规则</button><button onClick={props.onLog}>战斗记录</button><button disabled={settling} onClick={props.onReset}>重新开始</button></div>
     </aside>
 
     <section className={`combat-field camera-field ${settling ? 'is-resolving' : ''}`} aria-label="战场" style={cameraStyle}>

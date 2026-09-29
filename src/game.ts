@@ -35,6 +35,7 @@ const templates: Omit<Card, 'id' | 'added'>[] = [
 export function makeCard(index: number, id: string): Card { return { ...templates[index % templates.length], native: [...templates[index % templates.length].native], added: [], id } }
 export function initialDeck(): Card[] { return [0, 3, 2, 1, 5, 4, 7, 6, 0, 3, 2, 5, 8, 9].map((t, i) => makeCard(t, `starter-${i}`)) }
 export function makeSquirrel(id: string): Card { return { id, name: '松鼠', species: 'squirrel', attack: 0, health: 1, cost: 0, native: [], added: [], capacity: 3 } }
+export function allCreatures(): Card[] { return [...templates.map((_, index) => makeCard(index, `catalog-${index}`)), makeSquirrel('catalog-squirrel')] }
 export const sigils = (card: Card): Sigil[] => [...card.native, ...card.added]
 export const load = (card: Card): number => card.added.reduce((sum, s) => sum + SIGILS[s].weight, 0)
 export const emptyBoard = (): Board => [Array(5).fill(null), Array(5).fill(null)]
