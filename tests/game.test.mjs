@@ -13,10 +13,10 @@ test('deployment charges energy, removes the hand card, and rejects occupied or 
   assert.equal(deploy(next, 'starter-1', 0, 0), next)
   assert.equal(deploy(next, 'starter-2', 0, 1), next)
 })
-test('front blocks rear; defeating front does not spill damage into rear', () => {
+test('front blocks life damage and spills excess damage into rear', () => {
   const s = quietBattle(); s.player[0][0] = unit(0, 'p'); s.enemy[0][0] = unit(4, 'e', { native: [] }); s.enemy[1][0] = unit(1, 'rear')
   const next = resolveRound(s)
-  assert.equal(next.enemy[0][0].id, 'rear'); assert.equal(next.enemy[0][0].hp, 5); assert.equal(next.enemy[1][0], null); assert.equal(next.enemyHp, 24)
+  assert.equal(next.enemy[0][0].id, 'rear'); assert.equal(next.enemy[0][0].hp, 3); assert.equal(next.enemy[1][0], null); assert.equal(next.enemyHp, 24)
   assert.equal(next.player[0][0].hp, 2, 'rear must not advance and counterattack during the current combat')
 })
 test('rear melee cannot attack; ranged rear can damage an empty lane', () => {
@@ -169,7 +169,74 @@ test('enemy entry is left to right and a lethal hit stops the animation plan', (
   s.intents = [{card: makeCard(5, 'right'), col: 4, row: 0}, {card: makeCard(5, 'left'), col: 1, row: 0}]
   s.player[0][0] = unit(0, 'lethal'); s.enemyHp = 1
   const plan = planRound(s)
-  assert.deepEqual(plan.frames.map(f => f.action.kind), ['deploy', 'deploy', 'attack', 'hit'])
-  assert.deepEqual(plan.frames.slice(0, 2).map(f => f.action.target), ['enemy-0-1', 'enemy-0-4'])
+  assert.deepEqual(plan.frames.map(f => f.action.kind), ['attack', 'hit'])
+  assert.equal(plan.state.enemy[0][1], null)
+  assert.equal(plan.state.enemy[0][4], null)
   assert.equal(plan.state.status, 'won')
+})
+
+
+test('all player attacks finish before enemy deployment and counterattack', () => {
+  const s = quietBattle()
+  s.player[0][0] = unit(0, 'left'); s.player[0][4] = unit(0, 'right')
+  s.intents = [{ card: makeCard(5, 'right-enemy'), row: 0, col: 4 }, { card: makeCard(5, 'left-enemy'), row: 0, col: 0 }]
+  const plan = planRound(s)
+  assert.deepEqual(plan.frames.filter(f => ['attack', 'deploy'].includes(f.action.kind)).map(f => [f.action.kind, f.action.target]), [
+    ['attack', 'enemy-0-0'], ['attack', 'enemy-0-4'], ['deploy', 'enemy-0-0'], ['deploy', 'enemy-0-4'], ['attack', 'player-0-0'], ['attack', 'player-0-4'],
+  ])
+  assert.equal(plan.state.enemyHp, 18)
+  assert.equal(plan.frames[0].state.intents.length, 2)
+})
+
+test('empty front damages life and leaves rear untouched for either side', () => {
+  for (const side of ['player', 'enemy']) {
+    const s = quietBattle(), other = side === 'player' ? 'enemy' : 'player'
+    s[side][0][2] = unit(0, 'attacker')
+    s[other][1][2] = unit(1, 'rear', { native: [] })
+    const plan = planRound(s)
+    assert.equal(plan.state[other + 'Hp'], 21)
+    assert.equal(plan.state[other][0][2].hp, 5)
+    assert.equal(plan.frames.find(f => f.action.kind === 'attack').action.target, other + '-0-2')
+    assert.equal(plan.frames.find(f => f.action.kind === 'hit').action.target, 'life-' + other)
+  }
+})
+
+test('overflow never damages life, whether rear is absent or also killed', () => {
+  for (const rearPresent of [false, true]) {
+    const s = quietBattle()
+    s.player[0][0] = unit(0, 'attacker', { attack: 10 })
+    s.enemy[0][0] = unit(5, 'front', { hp: 1 })
+    if (rearPresent) s.enemy[1][0] = unit(5, 'rear')
+    const next = resolveRound(s)
+    assert.equal(next.enemyHp, 24)
+    assert.equal(next.enemy[0][0], null)
+    assert.equal(next.enemy[1][0], null)
+  }
+})
+
+test('overflow applies armor on each defender and rear thorns still retaliate', () => {
+  const s = quietBattle()
+  s.player[0][0] = unit(0, 'attacker', { attack: 5, hp: 1 })
+  s.enemy[0][0] = unit(3, 'front', { hp: 1 })
+  s.enemy[1][0] = unit(3, 'rear', { added: ['thorns'] })
+  const next = resolveRound(s)
+  assert.equal(next.enemy[0][0].hp, 2)
+  assert.equal(next.player[0][0], null)
+  assert.equal(next.enemyHp, 24)
+})
+
+test('each attack checks front occupancy anew, including ranged then front attacks', () => {
+  const s = quietBattle()
+  s.player[1][0] = unit(2, 'ranged')
+  s.player[0][0] = unit(0, 'front')
+  s.enemy[0][0] = unit(5, 'defender', { hp: 1 })
+  s.enemy[1][0] = unit(1, 'rear', { native: [] })
+  const next = resolveRound(s)
+  assert.equal(next.enemyHp, 21)
+  assert.equal(next.enemy[0][0].hp, 4)
+})
+
+test('split life attacks aim at their respective neighboring columns', () => {
+  const s = quietBattle(); s.player[0][2] = unit(7, 'split')
+  assert.deepEqual(planRound(s).frames.filter(f => f.action.kind === 'attack').map(f => f.action.target), ['enemy-0-1', 'enemy-0-3'])
 })

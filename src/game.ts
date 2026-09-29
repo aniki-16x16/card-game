@@ -6,7 +6,7 @@ export type Board = (Unit | null)[][]
 export type Intent = { card: Card; row: number; col: number }
 export type Battle = { round: number; energy: number; maxEnergy: number; playerHp: number; enemyHp: number; player: Board; enemy: Board; hand: Card[]; deck: Card[]; intents: Intent[]; log: string[]; status: 'playing' | 'won' | 'lost'; fatigue: number; encounter: number }
 export const SIGILS: Record<Sigil, { name: string; icon: string; weight: number; description: string }> = {
-  ranged: { name: '远射', icon: '↗', weight: 1, description: '位于后排时也能攻击同列最前方的敌人。' },
+  ranged: { name: '远射', icon: '↗', weight: 1, description: '位于后排时也能攻击同列；目标前排为空时直接伤害对方玩家。' },
   armor: { name: '硬甲', icon: '⬡', weight: 1, description: '每次受到攻击时，伤害减少 1，最低为 0。反伤不受此影响。' },
   support: { name: '鼓舞', icon: '✧', weight: 1, description: '位于后排时，使同列的友方前排攻击 +1。' },
   thorns: { name: '荆棘', icon: '✳', weight: 1, description: '被攻击后，对攻击者造成 1 点伤害，即使自身死亡。' },
@@ -91,14 +91,17 @@ export function resolveRound(state: Battle, record?: (action: BattleAction, stat
       }
     }
   }
-  const arriving = s.intents; s.intents = []
-  for (const intent of arriving.sort((a, b) => a.col - b.col || b.row - a.row)) {
-    const row = !s.enemy[intent.row][intent.col] ? intent.row : 1 - intent.row
-    if (!s.enemy[row][intent.col]) { s.enemy[row][intent.col] = { ...intent.card, hp: intent.card.health }; addLog(`敌方 ${intent.card.name} 进入 ${intent.col + 1} 列${row === 0 ? '前排' : '后排'}。`); emit({ kind: 'deploy', source: `intent-${intent.card.id}`, target: `enemy-${row}-${intent.col}`, label: `敌方 ${intent.card.name} 入场` }) }
-    else addLog(`第 ${intent.col + 1} 列已满，敌方 ${intent.card.name} 未能进场。`)
-  }
+  const arriving = [...s.intents]
   cleanup()
   for (const side of ['player', 'enemy'] as const) {
+    if (side === 'enemy') {
+      s.intents = s.intents.filter(intent => !arriving.includes(intent))
+      for (const intent of arriving.sort((a, b) => a.col - b.col || b.row - a.row)) {
+        const row = !s.enemy[intent.row][intent.col] ? intent.row : 1 - intent.row
+        if (!s.enemy[row][intent.col]) { s.enemy[row][intent.col] = { ...intent.card, hp: intent.card.health }; addLog(`敌方 ${intent.card.name} 进入 ${intent.col + 1} 列${row === 0 ? '前排' : '后排'}。`); emit({ kind: 'deploy', source: `intent-${intent.card.id}`, target: `enemy-${row}-${intent.col}`, label: `敌方 ${intent.card.name} 入场` }) }
+        else addLog(`第 ${intent.col + 1} 列已满，敌方 ${intent.card.name} 未能进场。`)
+      }
+    }
     const board = s[side], opponent = s[side === 'player' ? 'enemy' : 'player']
     const order = Array.from({ length: 5 }, (_, col) => [board[1][col], board[0][col]]).flat().filter((u): u is Unit => u !== null).map(u => u.id)
     for (const id of order) {
@@ -111,15 +114,29 @@ export function resolveRound(state: Battle, record?: (action: BattleAction, stat
       const targets = sigils(attacker).includes('split') ? [col - 1, col + 1].filter(c => c >= 0 && c < 5) : [col]
       for (const targetCol of targets) {
         if (attacker.hp <= 0) break
-        const defender = opponent[0][targetCol] ?? opponent[1][targetCol]
+        const defender = opponent[0][targetCol]
         const other = side === 'player' ? 'enemy' : 'player'
-        const target = defender ? `${other}-${opponent[0][targetCol] ? 0 : 1}-${targetCol}` : `life-${other}`
-        emit({ kind: 'attack', source: `${side}-${row}-${col}`, target, label: `${attacker.name} 攻击第 ${targetCol + 1} 列` })
+        const target = defender ? `${other}-0-${targetCol}` : `life-${other}`
+        // Lunge toward the lane; life damage still animates on the life display.
+        emit({ kind: 'attack', source: `${side}-${row}-${col}`, target: `${other}-0-${targetCol}`, label: `${attacker.name} 攻击第 ${targetCol + 1} 列` })
         if (defender) {
+          const frontHp = defender.hp
           const damage = Math.max(0, power - (sigils(defender).includes('armor') ? 1 : 0)); defender.hp -= damage
           addLog(`${attacker.name} → ${defender.name}，造成 ${damage} 点伤害${support ? '（鼓舞 +1）' : ''}。`)
           emit({ kind: 'hit', target, amount: damage, label: `${defender.name} ${damage ? `受到 ${damage} 点伤害` : '硬甲格挡'}` })
           if (sigils(defender).includes('thorns')) { attacker.hp -= 1; addLog(`荆棘反伤：${attacker.name} 受到 1 点伤害。`); emit({ kind: 'hit', target: `${side}-${row}-${col}`, amount: 1, label: `${attacker.name} 受到荆棘反伤` }) }
+          const overflow = Math.max(0, damage - frontHp), rear = opponent[1][targetCol]
+          if (overflow > 0 && rear) {
+            const rearDamage = Math.max(0, overflow - (sigils(rear).includes('armor') ? 1 : 0))
+            rear.hp -= rearDamage
+            addLog(`溢出伤害 → ${rear.name}，造成 ${rearDamage} 点伤害。`)
+            emit({ kind: 'hit', target: `${other}-1-${targetCol}`, amount: rearDamage, label: `${rear.name} 受到 ${rearDamage} 点溢出伤害` })
+            if (sigils(rear).includes('thorns')) {
+              attacker.hp -= 1
+              addLog(`荆棘反伤：${attacker.name} 受到 1 点伤害。`)
+              emit({ kind: 'hit', target: `${side}-${row}-${col}`, amount: 1, label: `${attacker.name} 受到荆棘反伤` })
+            }
+          }
         } else {
           if (side === 'player') s.enemyHp -= power; else s.playerHp -= power
           addLog(`${attacker.name} 突破第 ${targetCol + 1} 列，${side === 'player' ? '敌方' : '我方'}生命 −${power}。`)
