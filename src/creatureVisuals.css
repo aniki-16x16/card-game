@@ -1,0 +1,15 @@
+.sigil-icon{width:20px;height:20px;display:inline-block;vertical-align:middle;flex-shrink:0}
+.compact .sigil-icon{width:14px;height:14px}
+.sigil-detail-list .sigil-icon{width:26px;height:26px}
+.sigil-choices button{display:inline-flex;align-items:center;gap:5px}
+.sigil-glossary b .sigil-icon,.catalog-card strong .sigil-icon{margin-right:5px}
+.creature .marking{fill:var(--creature-accent);stroke:none}
+.creature .outline-mark{fill:none;stroke:var(--creature-accent);stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+.creature .silhouette{fill:currentColor}
+
+.card-stats>span{display:inline-flex;align-items:center;gap:4px}.stat-icon{width:12px;height:12px;color:#a8ba8e}.card-stats>span:last-child .stat-icon{color:#bda889}.compact .stat-icon{width:10px;height:10px}
+.camera-world .card-face .card-tribe,.combat-hand .card-face .card-tribe{top:18%;font-size:8cqw;line-height:1;letter-spacing:.5px}
+.camera-world .card-face>svg.creature,.combat-hand .card-face>svg.creature{top:23%;width:70%;left:15%}
+.camera-world .card-face .sigil-icon,.combat-hand .card-face .sigil-icon{width:16cqw;height:16cqw}
+.camera-world .card-face .stat-icon,.combat-hand .card-face .stat-icon{width:11cqw;height:11cqw}
+

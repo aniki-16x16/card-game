@@ -1,3 +1,4 @@
+import { SigilIcon } from './SigilIcon'
 import { useState } from 'react'
 import { CardFace } from './Cards'
 import { allCreatures, allTokens, SIGILS, TRIBES, sigils } from './game'
@@ -29,7 +30,7 @@ export function CreatureCatalog() {
         <CardFace card={card} />
         <div className="catalog-description">
           <h2>{card.name}<small>{TRIBES[card.tribe]} · {card.cost} 费</small></h2>
-          {sigils(card).length ? sigils(card).map(sigil => <p key={sigil}><strong>{SIGILS[sigil].icon} {SIGILS[sigil].name} <small>转移占用 {SIGILS[sigil].weight} 容量</small></strong>{SIGILS[sigil].description}</p>) : <p className="catalog-muted">无天生印记</p>}
+          {sigils(card).length ? sigils(card).map(sigil => <p key={sigil}><strong><SigilIcon sigil={sigil}/> {SIGILS[sigil].name} <small>转移占用 {SIGILS[sigil].weight} 容量</small></strong>{SIGILS[sigil].description}</p>) : <p className="catalog-muted">无天生印记</p>}
         </div>
       </article>)}
     </section>

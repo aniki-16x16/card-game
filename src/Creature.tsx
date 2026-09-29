@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
-import type { Art } from './game'
-export function Creature({ species, small = false }: { species: Art; small?: boolean }) {
+import type { Art, Species } from './game'
+import { palettes, variants, silhouettes } from './creatureVariants'
+import './creatureVisuals.css'
+export function Creature({ species, art, small = false }: { species: Species; art: Art; small?: boolean }) {
   const shapes: Record<Art, ReactNode> = {
     mouse: <><circle cx="35" cy="30" r="18"/><circle cx="85" cy="30" r="18"/><path d="M30 44Q60 25 90 44L79 82 60 100 41 82Z"/><circle cx="44" cy="57" r="4" className="eye"/><circle cx="76" cy="57" r="4" className="eye"/><path d="m54 80 12 0-6 8Z" className="eye"/></>,
     rabbit: <><ellipse cx="42" cy="28" rx="11" ry="25"/><ellipse cx="78" cy="28" rx="11" ry="25"/><ellipse cx="60" cy="70" rx="32" ry="30"/><circle cx="46" cy="64" r="5" className="eye"/><circle cx="74" cy="64" r="5" className="eye"/><path d="m54 79 12 0-6 8Z" className="eye"/></>,
@@ -25,5 +27,6 @@ export function Creature({ species, small = false }: { species: Art; small?: boo
     bear: <><circle cx="32" cy="31" r="13"/><circle cx="86" cy="31" r="13"/><path d="m34 26 49 1 12 35-12 27-24 10-27-13-9-24Z"/><path d="m46 63 26-1 10 18-22 13-23-12Z" className="shade"/><path d="m49 69 21 0-10 12Z" className="eye"/><path d="m35 47 15 5-9 5Zm34 5 15-5-7 10Z" className="eye"/></>,
     heron: <><path d="m75 19 12 13 22 7-27 5-9 21 5 16-33 11-26-22 26-8 17-8 3-20Z"/><path d="m24 69 42-9-20 24Z" className="shade"/><path d="M55 87 47 108m22-23 5 23" stroke="currentColor" strokeWidth="3"/><circle cx="78" cy="32" r="3" className="eye"/></>,
   }
-  return <svg viewBox="0 0 120 120" className={`creature ${species} ${small ? 'small' : ''}`} aria-hidden="true"><circle cx="60" cy="60" r="47" className="halo"/><path d="M9 60h102M60 10v100" className="guide"/>{shapes[species]}</svg>
+  const [color, accent] = palettes[species]
+  return <svg style={{ color, '--creature-accent': accent } as import('react').CSSProperties} viewBox="0 0 120 120" className={`creature ${species} ${small ? 'small' : ''}`} aria-hidden="true"><circle cx="60" cy="60" r="47" className="halo"/><path d="M9 60h102M60 10v100" className="guide"/><g className="silhouette" transform={species === 'youngRabbit' || species === 'spiderling' ? 'translate(15 18) scale(.75)' : undefined}>{silhouettes[species] ?? shapes[art]}{variants[species]}</g></svg>
 }
