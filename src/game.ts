@@ -1,4 +1,4 @@
-export type Sigil = 'ranged' | 'armor' | 'support' | 'thorns' | 'advance' | 'split' | 'rebirth'
+export type Sigil = 'ranged' | 'armor' | 'support' | 'thorns' | 'split' | 'rebirth'
 export type Species = 'wolf' | 'deer' | 'owl' | 'beetle' | 'moth' | 'fox' | 'bear' | 'heron'
 export type Card = { id: string; name: string; species: Species; attack: number; health: number; cost: number; native: Sigil[]; added: Sigil[]; capacity: number }
 export type Unit = Card & { hp: number }
@@ -10,7 +10,6 @@ export const SIGILS: Record<Sigil, { name: string; icon: string; weight: number;
   armor: { name: '硬甲', icon: '⬡', weight: 1, description: '每次受到攻击时，伤害减少 1，最低为 0。反伤不受此影响。' },
   support: { name: '鼓舞', icon: '✧', weight: 1, description: '位于后排时，使同列的友方前排攻击 +1。' },
   thorns: { name: '荆棘', icon: '✳', weight: 1, description: '被攻击后，对攻击者造成 1 点伤害，即使自身死亡。' },
-  advance: { name: '接替', icon: '⇡', weight: 1, description: '同列前排为空时，自动进入前排。' },
   split: { name: '分袭', icon: '⋔', weight: 2, description: '改为攻击左右相邻两列，不攻击正前方；边缘只攻击一列。' },
   rebirth: { name: '归魂', icon: '⟲', weight: 3, description: '死亡后返回手牌，仍需支付能量再次召唤。' },
 }
@@ -20,7 +19,7 @@ const templates: Omit<Card, 'id' | 'added'>[] = [
   { name: '夜巡鸮', species: 'owl', attack: 2, health: 2, cost: 2, native: ['ranged'], capacity: 3 },
   { name: '铁背甲虫', species: 'beetle', attack: 1, health: 4, cost: 1, native: ['armor'], capacity: 3 },
   { name: '归魂蛾', species: 'moth', attack: 1, health: 1, cost: 1, native: ['rebirth'], capacity: 3 },
-  { name: '赤尾狐', species: 'fox', attack: 2, health: 2, cost: 1, native: ['advance'], capacity: 3 },
+  { name: '赤尾狐', species: 'fox', attack: 2, health: 2, cost: 1, native: [], capacity: 3 },
   { name: '山脊熊', species: 'bear', attack: 3, health: 6, cost: 3, native: ['thorns'], capacity: 3 },
   { name: '裂风鹭', species: 'heron', attack: 2, health: 3, cost: 3, native: ['split'], capacity: 3 },
 ]
@@ -81,9 +80,6 @@ export function resolveRound(state: Battle): Battle {
           }
         }
       }
-      for (let c = 0; c < 5; c++) if (!board[0][c] && board[1][c] && sigils(board[1][c]!).includes('advance')) {
-        board[0][c] = board[1][c]; board[1][c] = null; addLog(`${board[0][c]!.name} 接替至前排。`)
-      }
     }
   }
   const arriving = s.intents; s.intents = []
@@ -122,6 +118,22 @@ export function resolveRound(state: Battle): Battle {
   s.round++; s.maxEnergy = Math.min(6, 3 + Math.floor((s.round - 1) / 2)); s.energy = s.maxEnergy
   if (s.deck.length) s.hand.push(s.deck.shift()!)
   else { s.fatigue++; s.playerHp -= s.fatigue; addLog(`牌库耗尽：疲劳造成 ${s.fatigue} 点生命伤害。`) }
-  checkEnd(); s.intents.push(...getIntents(s.round, s.encounter)); s.log = s.log.slice(0, 60)
+  if (!checkEnd()) {
+    // Start of the new round, before deployment: advance both sides once.
+    // Never promote units during attack/death resolution.
+    for (const side of ['player', 'enemy'] as const) {
+      const board = s[side]
+      for (let col = 0; col < 5; col++) {
+        const rear = board[1][col]
+        if (rear && !board[0][col]) {
+          board[0][col] = rear
+          board[1][col] = null
+          addLog(`第 ${s.round} 回合开始：${side === 'player' ? '我方' : '敌方'} ${rear.name} 自动上前至第 ${col + 1} 列。`)
+        }
+      }
+    }
+    s.intents.push(...getIntents(s.round, s.encounter))
+  }
+  s.log = s.log.slice(0, 60)
   return s
 }

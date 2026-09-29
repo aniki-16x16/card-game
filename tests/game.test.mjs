@@ -16,7 +16,8 @@ test('deployment charges energy, removes the hand card, and rejects occupied or 
 test('front blocks rear; defeating front does not spill damage into rear', () => {
   const s = quietBattle(); s.player[0][0] = unit(0, 'p'); s.enemy[0][0] = unit(4, 'e', { native: [] }); s.enemy[1][0] = unit(1, 'rear')
   const next = resolveRound(s)
-  assert.equal(next.enemy[0][0], null); assert.equal(next.enemy[1][0].hp, 5); assert.equal(next.enemyHp, 24)
+  assert.equal(next.enemy[0][0].id, 'rear'); assert.equal(next.enemy[0][0].hp, 5); assert.equal(next.enemy[1][0], null); assert.equal(next.enemyHp, 24)
+  assert.equal(next.player[0][0].hp, 2, 'rear must not advance and counterattack during the current combat')
 })
 test('rear melee cannot attack; ranged rear can damage an empty lane', () => {
   const s = quietBattle(); s.player[1][0] = unit(0, 'melee'); s.player[1][1] = unit(2, 'ranged')
@@ -30,9 +31,55 @@ test('armor reduces damage and thorns can kill the attacker after a lethal hit',
   const s = quietBattle(); s.player[0][0] = unit(0, 'p', { hp: 1 }); s.enemy[0][0] = unit(3, 'e', { hp: 2, added: ['thorns'] })
   const next = resolveRound(s); assert.equal(next.player[0][0], null); assert.equal(next.enemy[0][0], null)
 })
-test('advance enters vacant front and attacks once', () => {
+test('rear fox advances only at the next round start and cannot attack early', () => {
   const s = quietBattle(); s.player[1][0] = unit(5, 'fox')
-  const next = resolveRound(s); assert.equal(next.player[0][0].id, 'fox'); assert.equal(next.player[1][0], null); assert.equal(next.enemyHp, 22)
+  const next = resolveRound(s); assert.equal(next.player[0][0].id, 'fox'); assert.equal(next.player[1][0], null); assert.equal(next.enemyHp, 24)
+  next.intents = []
+  assert.equal(resolveRound(next).enemyHp, 22)
+})
+
+test('all rear species on both sides advance at round start, preserving damage and sigils', () => {
+  const s = quietBattle()
+  for (const side of ['player', 'enemy']) for (let col = 0; col < 5; col++) {
+    s[side][1][col] = unit(col, `${side}-${col}`, { attack: 0, hp: 1, added: ['armor'] })
+  }
+  const next = resolveRound(s)
+  assert.equal(next.round, 2)
+  for (const side of ['player', 'enemy']) for (let col = 0; col < 5; col++) {
+    assert.deepEqual(next[side][0][col], s[side][1][col])
+    assert.equal(next[side][1][col], null)
+    assert.equal(s[side][0][col], null, 'original state is untouched')
+  }
+})
+
+test('occupied front prevents promotion on both sides', () => {
+  const s = quietBattle()
+  for (const side of ['player', 'enemy']) {
+    s[side][0][2] = unit(3, `${side}-front`, { attack: 0 })
+    s[side][1][2] = unit(0, `${side}-rear`)
+  }
+  const next = resolveRound(s)
+  for (const side of ['player', 'enemy']) {
+    assert.equal(next[side][0][2].id, `${side}-front`)
+    assert.equal(next[side][1][2].id, `${side}-rear`)
+  }
+})
+
+test('deploying into an empty rear lane waits until the next round to advance', () => {
+  const s = deploy(quietBattle(), 'starter-0', 1, 4)
+  assert.equal(s.player[0][4], null)
+  const next = resolveRound(s)
+  assert.equal(next.enemyHp, 24)
+  assert.equal(next.player[0][4].id, 'starter-0')
+  assert.equal(next.player[1][4], null)
+})
+
+test('fatigue defeat does not start a new deployment phase or advance rear units', () => {
+  const s = quietBattle(); s.deck = []; s.playerHp = 1; s.player[1][0] = unit(0, 'rear')
+  const next = resolveRound(s)
+  assert.equal(next.status, 'lost')
+  assert.equal(next.player[0][0], null)
+  assert.equal(next.player[1][0].id, 'rear')
 })
 test('split attacks neighboring lanes, and edge split only attacks one lane', () => {
   const s = quietBattle(); s.player[0][2] = unit(7, 'heron')
