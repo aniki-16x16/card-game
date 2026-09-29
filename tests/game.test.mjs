@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { initialDeck, makeCard, startBattle, deploy, resolveRound, transfer, load } from '../src/game.ts'
+import { initialDeck, makeCard, startBattle, deploy, planRound, resolveRound, transfer, load } from '../src/game.ts'
 
 const unit = (index, id, patch = {}) => { const card = makeCard(index, id); return { ...card, hp: card.health, ...patch } }
 const quietBattle = () => ({ ...startBattle(initialDeck()), intents: [] })
@@ -130,4 +130,46 @@ test('inherited sigils can be transferred again without increasing receiver capa
   const second = transfer(first.deck, 'starter-0', 'starter-3', 'armor')
   const receiver = second.deck.find(c => c.id === 'starter-3')
   assert.deepEqual(receiver.native, ['support']); assert.deepEqual(receiver.added, ['armor']); assert.equal(receiver.capacity, 3)
+})
+
+
+test('animation timeline orders columns left to right and rear before front, without mutating input', () => {
+  const s = quietBattle()
+  s.player[0][0] = unit(0, 'front')
+  s.player[1][0] = unit(2, 'rear')
+  s.player[0][1] = unit(5, 'right')
+  const original = structuredClone(s)
+  const plan = planRound(s)
+  assert.deepEqual(plan.frames.filter(f => f.action.kind === 'attack').map(f => f.action.source), ['player-1-0', 'player-0-0', 'player-0-1'])
+  assert.deepEqual(plan.frames.map(f => f.action.kind), ['attack', 'hit', 'attack', 'hit', 'attack', 'hit'])
+  assert.equal(plan.frames[0].state.enemyHp, 24)
+  assert.equal(plan.frames[1].state.enemyHp, 22)
+  assert.deepEqual(plan.state, resolveRound(s))
+  assert.deepEqual(s, original)
+})
+
+test('hit, retaliation, death, and next-round promotion are separate snapshots', () => {
+  const s = quietBattle()
+  s.player[0][0] = unit(0, 'front', { hp: 1 })
+  s.player[1][0] = unit(5, 'rear')
+  s.enemy[0][0] = unit(6, 'thorns', { hp: 1 })
+  const plan = planRound(s)
+  assert.deepEqual(plan.frames.map(f => f.action.kind), ['attack', 'hit', 'hit', 'death', 'death', 'advance'])
+  assert.equal(plan.frames[1].state.enemy[0][0].hp, -2)
+  assert.equal(plan.frames[1].state.player[0][0].hp, 1)
+  assert.equal(plan.frames[2].state.player[0][0].hp, 0)
+  const advance = plan.frames.at(-1)
+  assert.equal(advance.state.round, 2)
+  assert.equal(advance.state.player[0][0].id, 'rear')
+  assert.equal(advance.state.player[1][0], null)
+})
+
+test('enemy entry is left to right and a lethal hit stops the animation plan', () => {
+  const s = quietBattle()
+  s.intents = [{card: makeCard(5, 'right'), col: 4, row: 0}, {card: makeCard(5, 'left'), col: 1, row: 0}]
+  s.player[0][0] = unit(0, 'lethal'); s.enemyHp = 1
+  const plan = planRound(s)
+  assert.deepEqual(plan.frames.map(f => f.action.kind), ['deploy', 'deploy', 'attack', 'hit'])
+  assert.deepEqual(plan.frames.slice(0, 2).map(f => f.action.target), ['enemy-0-1', 'enemy-0-4'])
+  assert.equal(plan.state.status, 'won')
 })

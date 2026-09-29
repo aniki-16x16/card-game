@@ -1,0 +1,8 @@
+.card-flight.camera-world { position: fixed; z-index: 100; pointer-events: none; transform-origin: top left; filter: drop-shadow(0 18px 18px #0008); }
+.card-flight .combat-slot { display: block; overflow: hidden; border-radius: 12px; }
+.damage-number { position: fixed; z-index: 110; pointer-events: none; color: #ffe3b5; font-size: 34px; font-weight: 800; text-shadow: 0 2px 4px #000, 0 0 18px #dd6846; }
+.combat-field.is-resolving { filter: none; }
+.combat-slot:disabled, .combat-hand-card:disabled { opacity: 1; }
+.combat-slot { position: relative; }
+.combat-slot:has(.card-face) { overflow: visible; }
+.action-label { color: #e7d4a4; font-size: 17px; line-height: 1.6; }

@@ -58,9 +58,17 @@ export function deploy(state: Battle, id: string, row: number, col: number): Bat
   next.log.unshift(`部署 ${card.name} → ${col + 1} 列${row === 0 ? '前排' : '后排'}。`)
   return next
 }
-export function resolveRound(state: Battle): Battle {
+export type BattleAction = { kind: 'deploy' | 'attack' | 'hit' | 'advance' | 'death'; source?: string; target: string; label: string; amount?: number }
+export type BattleFrame = { action: BattleAction; state: Battle }
+export function planRound(state: Battle): { frames: BattleFrame[]; state: Battle } {
+  const frames: BattleFrame[] = []
+  const result = resolveRound(state, (action, snapshot) => frames.push({ action, state: snapshot }))
+  return { frames, state: result }
+}
+export function resolveRound(state: Battle, record?: (action: BattleAction, state: Battle) => void): Battle {
   if (state.status !== 'playing') return state
   const s = structuredClone(state), addLog = (message: string) => s.log.unshift(message)
+  const emit = (action: BattleAction) => record?.(action, structuredClone(s))
   function checkEnd() {
     if (s.enemyHp <= 0) { s.enemyHp = 0; s.status = 'won'; return true }
     if (s.playerHp <= 0) { s.playerHp = 0; s.status = 'lost'; return true }
@@ -69,7 +77,7 @@ export function resolveRound(state: Battle): Battle {
   function cleanup() {
     for (const side of ['player', 'enemy'] as const) {
       const board = s[side]
-      for (let r = 0; r < 2; r++) for (let c = 0; c < 5; c++) {
+      for (let c = 0; c < 5; c++) for (const r of [1, 0]) {
         const unit = board[r][c]
         if (unit && unit.hp <= 0) {
           board[r][c] = null; addLog(`${side === 'player' ? '我方' : '敌方'} ${unit.name} 倒下了。`)
@@ -78,20 +86,21 @@ export function resolveRound(state: Battle): Battle {
             if (side === 'player') { s.hand.push(restored); addLog(`${unit.name} 归魂，返回手牌。`) }
             else s.intents.push({ card: restored, row: r, col: c })
           }
+          emit({ kind: 'death', target: `${side}-${r}-${c}`, label: `${unit.name} 倒下` })
         }
       }
     }
   }
   const arriving = s.intents; s.intents = []
-  for (const intent of arriving) {
+  for (const intent of arriving.sort((a, b) => a.col - b.col || b.row - a.row)) {
     const row = !s.enemy[intent.row][intent.col] ? intent.row : 1 - intent.row
-    if (!s.enemy[row][intent.col]) { s.enemy[row][intent.col] = { ...intent.card, hp: intent.card.health }; addLog(`敌方 ${intent.card.name} 进入 ${intent.col + 1} 列${row === 0 ? '前排' : '后排'}。`) }
+    if (!s.enemy[row][intent.col]) { s.enemy[row][intent.col] = { ...intent.card, hp: intent.card.health }; addLog(`敌方 ${intent.card.name} 进入 ${intent.col + 1} 列${row === 0 ? '前排' : '后排'}。`); emit({ kind: 'deploy', source: `intent-${intent.card.id}`, target: `enemy-${row}-${intent.col}`, label: `敌方 ${intent.card.name} 入场` }) }
     else addLog(`第 ${intent.col + 1} 列已满，敌方 ${intent.card.name} 未能进场。`)
   }
   cleanup()
   for (const side of ['player', 'enemy'] as const) {
     const board = s[side], opponent = s[side === 'player' ? 'enemy' : 'player']
-    const order = board.flat().filter((u): u is Unit => u !== null).map(u => u.id)
+    const order = Array.from({ length: 5 }, (_, col) => [board[1][col], board[0][col]]).flat().filter((u): u is Unit => u !== null).map(u => u.id)
     for (const id of order) {
       let row = -1, col = -1
       for (let r = 0; r < 2; r++) for (let c = 0; c < 5; c++) if (board[r][c]?.id === id) { row = r; col = c }
@@ -103,13 +112,18 @@ export function resolveRound(state: Battle): Battle {
       for (const targetCol of targets) {
         if (attacker.hp <= 0) break
         const defender = opponent[0][targetCol] ?? opponent[1][targetCol]
+        const other = side === 'player' ? 'enemy' : 'player'
+        const target = defender ? `${other}-${opponent[0][targetCol] ? 0 : 1}-${targetCol}` : `life-${other}`
+        emit({ kind: 'attack', source: `${side}-${row}-${col}`, target, label: `${attacker.name} 攻击第 ${targetCol + 1} 列` })
         if (defender) {
           const damage = Math.max(0, power - (sigils(defender).includes('armor') ? 1 : 0)); defender.hp -= damage
           addLog(`${attacker.name} → ${defender.name}，造成 ${damage} 点伤害${support ? '（鼓舞 +1）' : ''}。`)
-          if (sigils(defender).includes('thorns')) { attacker.hp -= 1; addLog(`荆棘反伤：${attacker.name} 受到 1 点伤害。`) }
+          emit({ kind: 'hit', target, amount: damage, label: `${defender.name} ${damage ? `受到 ${damage} 点伤害` : '硬甲格挡'}` })
+          if (sigils(defender).includes('thorns')) { attacker.hp -= 1; addLog(`荆棘反伤：${attacker.name} 受到 1 点伤害。`); emit({ kind: 'hit', target: `${side}-${row}-${col}`, amount: 1, label: `${attacker.name} 受到荆棘反伤` }) }
         } else {
           if (side === 'player') s.enemyHp -= power; else s.playerHp -= power
           addLog(`${attacker.name} 突破第 ${targetCol + 1} 列，${side === 'player' ? '敌方' : '我方'}生命 −${power}。`)
+          emit({ kind: 'hit', target, amount: power, label: `${side === 'player' ? '敌方' : '我方'}生命 −${power}` })
         }
         cleanup(); if (checkEnd()) return s
       }
@@ -117,7 +131,7 @@ export function resolveRound(state: Battle): Battle {
   }
   s.round++; s.maxEnergy = Math.min(6, 3 + Math.floor((s.round - 1) / 2)); s.energy = s.maxEnergy
   if (s.deck.length) s.hand.push(s.deck.shift()!)
-  else { s.fatigue++; s.playerHp -= s.fatigue; addLog(`牌库耗尽：疲劳造成 ${s.fatigue} 点生命伤害。`) }
+  else { s.fatigue++; s.playerHp -= s.fatigue; addLog(`牌库耗尽：疲劳造成 ${s.fatigue} 点生命伤害。`); emit({ kind: 'hit', target: 'life-player', amount: s.fatigue, label: `疲劳伤害 −${s.fatigue}` }) }
   if (!checkEnd()) {
     // Start of the new round, before deployment: advance both sides once.
     // Never promote units during attack/death resolution.
@@ -129,6 +143,7 @@ export function resolveRound(state: Battle): Battle {
           board[0][col] = rear
           board[1][col] = null
           addLog(`第 ${s.round} 回合开始：${side === 'player' ? '我方' : '敌方'} ${rear.name} 自动上前至第 ${col + 1} 列。`)
+          emit({ kind: 'advance', source: `${side}-1-${col}`, target: `${side}-0-${col}`, label: `${rear.name} 上前补位 · 第 ${col + 1} 列` })
         }
       }
     }

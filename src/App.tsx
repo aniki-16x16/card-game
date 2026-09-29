@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import { flushSync } from 'react-dom'
+import { animateBattleAction } from './battleAnimation'
 import { Creature } from './Creature'
 import { CardFace } from './Cards'
 import { BattleView } from './BattleView'
-import { SIGILS, deploy, initialDeck, load, makeCard, resolveRound, sigils, startBattle, transfer } from './game'
-import type { Card, Sigil, Unit } from './game'
+import { SIGILS, deploy, initialDeck, load, makeCard, planRound, sigils, startBattle, transfer } from './game'
+import type { Battle, BattleFrame, Card, Sigil, Unit } from './game'
 import './App.css'
 import './BattleView.css'
 import './BattleCamera.css'
+import './BattleAnimation.css'
 
 function Modal({ children, onClose, label, dismissible = true }: { children: ReactNode; onClose: () => void; label: string; dismissible?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null)
@@ -32,8 +35,10 @@ export default function App() {
   const [undoDeck, setUndoDeck] = useState<Card[] | null>(null)
   const [showLog, setShowLog] = useState(false)
   const [settling, setSettling] = useState(false)
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current) }, [])
+  const playing = useRef(false)
+  const animationAbort = useRef<AbortController | null>(null)
+  const [actionLabel, setActionLabel] = useState('')
+  useEffect(() => () => animationAbort.current?.abort(), [])
   useEffect(() => { if (!notice) return; const timeout = setTimeout(() => setNotice(''), 4200); return () => clearTimeout(timeout) }, [notice])
   const donor = deck.find(c => c.id === donorId), target = deck.find(c => c.id === targetId)
   const preview = donor && target && chosenSigil ? transfer(deck, donor.id, target.id, chosenSigil, removed) : null
@@ -43,10 +48,30 @@ export default function App() {
   const canForge = !engaged || battle.status !== 'playing'
   function clearForge() { setDonor(null); setTarget(null); setChosenSigil(null); setRemoved([]); setPickRole('donor') }
   function restart(cards = deck, encounter = battle.encounter) { setBattle(startBattle(cards, encounter)); setEngaged(false); setSelected(null); setInspected(null); setUndoDeck(null) }
-  function endTurn() {
-    if (settling || battle.status !== 'playing') return
+  async function play(frames: BattleFrame[], finalState: Battle) {
+    if (playing.current) return
+    playing.current = true
+    const controller = new AbortController()
+    animationAbort.current = controller
     setEngaged(true); setSettling(true); setSelected(null); setInspected(null); setUndoDeck(null)
-    timer.current = setTimeout(() => { setBattle(s => resolveRound(s)); setSettling(false) }, 450)
+    try {
+      for (const frame of frames) {
+        if (controller.signal.aborted) return
+        flushSync(() => setActionLabel(frame.action.label))
+        await animateBattleAction(frame.action, controller.signal, frame.state)
+        if (controller.signal.aborted) return
+        flushSync(() => setBattle(frame.state))
+      }
+      setBattle(finalState)
+    } finally {
+      playing.current = false
+      if (!controller.signal.aborted) { setSettling(false); setActionLabel('') }
+    }
+  }
+  function endTurn() {
+    if (playing.current || battle.status !== 'playing') return
+    const plan = planRound(battle)
+    void play(plan.frames, plan.state)
   }
   function chooseForgeCard(card: Card) {
     if (pickRole === 'donor') { setDonor(card.id); setChosenSigil(sigils(card)[0] ?? null); if (targetId === card.id) setTarget(null); setPickRole('target') }
@@ -65,10 +90,12 @@ export default function App() {
     {notice && <div className="toast" role="status">✦ {notice}</div>}
     <main>
       <div className="page-heading"><div><div className="eyebrow">THE WILDS AWAIT</div><h1>{mode === 'battle' ? '雾林边境' : '让印记，生根。'}</h1><p>{mode === 'battle' ? '在荒野中缔结契约，让每一个位置都有意义。' : '献出一个灵魂，将它的力量留在另一个生命中。'}</p></div><div className="journey"><span className="journey-dot done">✓</span><span className="journey-line"/><span className="journey-dot current">{String(battle.encounter).padStart(2, '0')}</span><span className="journey-line"/><span className="journey-dot">❋</span><small>旅程 · 第 {battle.encounter} 场遭遇</small></div></div>
-      {mode === 'battle' ? <BattleView battle={battle} selected={selected} settling={settling} canForge={canForge} onSelect={setSelected} onInspect={setInspected} onEnd={endTurn} onForge={() => { setSelected(null); setMode('forge') }} onRules={() => setRules(true)} onReset={() => setReset(true)} onLog={() => setShowLog(true)} onDeploy={(row, col) => {
+      {mode === 'battle' ? <BattleView actionLabel={actionLabel} battle={battle} selected={selected} settling={settling} canForge={canForge} onSelect={setSelected} onInspect={setInspected} onEnd={endTurn} onForge={() => { setSelected(null); setMode('forge') }} onRules={() => setRules(true)} onReset={() => setReset(true)} onLog={() => setShowLog(true)} onDeploy={(row, col) => {
         if (!selectedCard || settling || battle.status !== 'playing') return
         if (selectedCard.cost > battle.energy) { setNotice('能量不足，试试其他手牌。'); return }
-        setBattle(s => deploy(s, selectedCard.id, row, col)); setEngaged(true); setSelected(null); setUndoDeck(null)
+        const next = deploy(battle, selectedCard.id, row, col)
+        if (next === battle) return
+        void play([{ action: { kind: 'deploy', source: 'hand-' + selectedCard.id, target: 'player-' + row + '-' + col, label: selectedCard.name + ' 部署' }, state: next }], next)
       }} /> : <div className="forge-layout"><section className="forge-main"><div className="section-label">印记仪式 <span>传承力量，而非次数。</span></div><div className="ritual"><button className={`ritual-slot ${pickRole === 'donor' ? 'picking' : ''}`} onClick={() => setPickRole('donor')}><span className="eyebrow">01 / 献出</span>{donor ? <CardFace onInspect={setInspected} card={donor}/> : <div className="ritual-empty"><span>◇</span><h3>选择供体</h3><p>这张卡将被消耗</p></div>}</button><div className="ritual-arrow"><span>⌘</span><span>→</span></div><button className={`ritual-slot ${pickRole === 'target' ? 'picking' : ''}`} onClick={() => setPickRole('target')}><span className="eyebrow">02 / 继承</span>{target ? <CardFace onInspect={setInspected} card={preview && !preview.error ? preview.deck.find(c => c.id === target.id)! : target}/> : <div className="ritual-empty"><span>❋</span><h3>选择受体</h3><p>保留天生印记和属性</p></div>}</button></div>
         <div className="ritual-options"><div><h3>传递一个印记</h3><div className="sigil-choices">{donor && sigils(donor).length ? sigils(donor).map(s => <button key={s} className={chosenSigil === s ? 'chosen' : ''} onClick={() => setChosenSigil(s)} title={SIGILS[s].description}>{SIGILS[s].icon} {SIGILS[s].name} <small>{SIGILS[s].weight} 容量</small></button>) : <p className="muted">{donor ? '这张生物没有可传递的印记，请更换供体。' : '从下方牌组选择一张拥有印记的生物。'}</p>}</div></div>{target && <div><h3>外来印记容量 <span>{preview && !preview.error ? load(preview.deck.find(c => c.id === target.id)!) : load(target)} / {target.capacity}</span></h3><div className="capacity-bar">{Array.from({ length: target.capacity }, (_, i) => <span key={i} className={i < (preview && !preview.error ? load(preview.deck.find(c => c.id === target.id)!) : load(target)) ? 'used' : ''}/>)}</div>{target.added.length > 0 && <div className="replace-options"><p>可勾选旧印记，覆盖并释放容量：</p>{target.added.map(s => <label key={s}><input type="checkbox" checked={removed.includes(s)} onChange={e => setRemoved(e.target.checked ? [...removed, s] : removed.filter(x => x !== s))}/>{SIGILS[s].name}（{SIGILS[s].weight}）</label>)}</div>}</div>}</div>
         <div className="ritual-confirm"><p className={preview?.error ? 'error-text' : ''}>{preview?.error ?? (donor && target && chosenSigil ? `消耗 ${donor.name}，将「${SIGILS[chosenSigil].name}」交给 ${target.name}。` : '选择供体、受体和印记，预览结果后完成转移。')}</p><button className="primary" disabled={!preview || !!preview.error} onClick={doTransfer}>完成印记转移 <span>↗</span></button></div>
@@ -79,11 +106,12 @@ export default function App() {
 
     {detail && <Modal label="生物印记" onClose={() => setInspected(null)}><div className="sigil-detail-heading"><Creature species={detail.species}/><div><span className="eyebrow">生物印记</span><h2>{detail.name}</h2><p>攻击 {detail.attack} · 生命 {detailHp} · 能量 {detail.cost}</p></div></div><div className="sigil-detail-capacity">外来印记容量 <strong>{load(detail)} / {detail.capacity}</strong><span>天生印记不占容量</span></div><div className="sigil-detail-list">{sigils(detail).length ? sigils(detail).map(s => <div key={s}><span>{SIGILS[s].icon}</span><div><h3>{SIGILS[s].name}<small>{detail.added.includes(s) ? '继承 · 占用' : '天生 · 转移占用'} {SIGILS[s].weight} 容量</small></h3><p>{SIGILS[s].description}</p></div></div>) : <p>没有印记。可在战前的印记工坊中继承其他生物的能力。</p>}</div><button className="primary" onClick={() => setInspected(null)}>返回</button></Modal>}
     {showLog && <Modal label="战斗记录" onClose={() => setShowLog(false)}><h2>战斗记录</h2><ol className="battle-log-dialog">{battle.log.map((line, i) => <li key={i}>{line}</li>)}</ol></Modal>}
-    {rules && <Modal label="游戏规则" onClose={() => setRules(false)}><span className="eyebrow">FIELD MANUAL</span><h2>旅人的战斗手册</h2><p className="modal-description">镜头默认居中。按 W / S 或滚动鼠标滚轮，快速向敌方 / 己方切换一档；无需长按。</p><div className="rule-block"><h3>01 · 部署与交锋</h3><p>点击手牌，再点击己方空位支付能量部署。结束回合后：敌方预告单位入场 → 我方攻击 → 敌方攻击 → 抽 1 张牌、恢复能量。双方均先前排后后排，每排从左到右结算。预告位置被占时尝试同列另一排；全列已满则放弃入场。</p></div><div className="rule-block"><h3>02 · 前排与后排</h3><p>普通生物只有在前排才能攻击。攻击先命中同列敌方前排，再命中后排；该列全空才扣除对方生命。每个新回合开始、进入部署阶段前，双方所有后排生物都会检查同列前排：为空则自动上前。无需印记；本回合新部署的后排生物，以及战斗中前排死亡后的空位，都要等到下回合开始才补位。</p></div><div className="rule-block"><h3>03 · 赢得遭遇</h3><p>敌方生命归零获胜，选一张奖励卡后进入工坊。你的生命归零则失败，可以重试或改造。每场战斗生命重置，卡牌不会因战斗死亡永久丢失。牌库耗尽后，每次抽牌改为受到递增的疲劳伤害（1、2、3…）。</p></div><div className="rule-block"><h3>04 · 能量与印记</h3><p>初始能量上限 3，每两回合增加 1，上限为 6。印记只在战斗外改造，供体会被消耗，受体可以多次继承，只要不超过容量。当前原型使用固定牌序，方便比较不同改造。</p></div><div className="sigil-glossary">{Object.entries(SIGILS).map(([key, s]) => <div key={key}><b>{s.icon} {s.name}<small>{s.weight} 容量</small></b><p>{s.description}</p></div>)}</div><button className="primary" onClick={() => setRules(false)}>准备好了 →</button></Modal>}
+    {rules && <Modal label="游戏规则" onClose={() => setRules(false)}><span className="eyebrow">FIELD MANUAL</span><h2>旅人的战斗手册</h2><p className="modal-description">镜头默认居中。按 W / S 或滚动鼠标滚轮，快速向敌方 / 己方切换一档；无需长按。</p><div className="rule-block"><h3>01 · 部署与交锋</h3><p>点击手牌，再点击己方空位支付能量部署。结束回合后：敌方预告单位入场 → 我方攻击 → 敌方攻击 → 抽 1 张牌、恢复能量。双方均按列从左到右、同列从后排到前排依次行动。部署、攻击、受击和补位动画逐个播放。预告位置被占时尝试同列另一排；全列已满则放弃入场。</p></div><div className="rule-block"><h3>02 · 前排与后排</h3><p>普通生物只有在前排才能攻击。攻击先命中同列敌方前排，再命中后排；该列全空才扣除对方生命。每个新回合开始、进入部署阶段前，双方所有后排生物都会检查同列前排：为空则自动上前。无需印记；本回合新部署的后排生物，以及战斗中前排死亡后的空位，都要等到下回合开始才补位。</p></div><div className="rule-block"><h3>03 · 赢得遭遇</h3><p>敌方生命归零获胜，选一张奖励卡后进入工坊。你的生命归零则失败，可以重试或改造。每场战斗生命重置，卡牌不会因战斗死亡永久丢失。牌库耗尽后，每次抽牌改为受到递增的疲劳伤害（1、2、3…）。</p></div><div className="rule-block"><h3>04 · 能量与印记</h3><p>初始能量上限 3，每两回合增加 1，上限为 6。印记只在战斗外改造，供体会被消耗，受体可以多次继承，只要不超过容量。当前原型使用固定牌序，方便比较不同改造。</p></div><div className="sigil-glossary">{Object.entries(SIGILS).map(([key, s]) => <div key={key}><b>{s.icon} {s.name}<small>{s.weight} 容量</small></b><p>{s.description}</p></div>)}</div><button className="primary" onClick={() => setRules(false)}>准备好了 →</button></Modal>}
     {reset && <Modal label="重新开始冒险" onClose={() => setReset(false)}><span className="eyebrow">A NEW JOURNEY</span><h2>重新出发？</h2><p className="modal-description">当前战斗、奖励卡和印记改造都会重置，恢复最初的 12 张牌。</p><div className="modal-actions"><button className="secondary" onClick={() => setReset(false)}>继续旅程</button><button className="primary" onClick={() => { const cards = initialDeck(); setDeck(cards); restart(cards, 1); clearForge(); setMode('battle'); setReset(false); setNotice('新的旅程开始了。') }}>重新开始</button></div></Modal>}
-    {battle.status !== 'playing' && mode === 'battle' && <Modal dismissible={battle.status !== 'won'} label={battle.status === 'won' ? '遭遇胜利' : '遭遇失败'} onClose={() => setMode('forge')}><span className="eyebrow">{battle.status === 'won' ? 'THE WILDS REMEMBER' : 'REST, AND RETURN'}</span><h2>{battle.status === 'won' ? '林地为你让路。' : '在雾中暂歇。'}</h2><p className="modal-description">{battle.status === 'won' ? '选择一位新伙伴，然后前往印记工坊，为下一场遭遇做准备。' : '你的契约仍然保留。调整阵型，或到工坊重新组合印记，再试一次。'}</p>{battle.status === 'won' ? <div className="reward-cards">{[4, 7, 6].map((t, i) => { const card = makeCard((t + battle.encounter - 1) % 8, `reward-${battle.encounter}-${i}`); return <button key={card.id} onClick={() => { const next = [...deck, card]; setDeck(next); restart(next, battle.encounter + 1); clearForge(); setMode('forge'); setNotice(`${card.name} 加入了你的牌组。`) }}><CardFace onInspect={setInspected} card={card}/><span>选择伙伴 ＋</span></button> })}</div> : <div className="modal-actions"><button className="secondary" onClick={() => { restart(); setMode('forge') }}>前往工坊</button><button className="primary" onClick={() => restart()}>再次挑战 →</button></div>}</Modal>}
+    {!settling && battle.status !== 'playing' && mode === 'battle' && <Modal dismissible={battle.status !== 'won'} label={battle.status === 'won' ? '遭遇胜利' : '遭遇失败'} onClose={() => setMode('forge')}><span className="eyebrow">{battle.status === 'won' ? 'THE WILDS REMEMBER' : 'REST, AND RETURN'}</span><h2>{battle.status === 'won' ? '林地为你让路。' : '在雾中暂歇。'}</h2><p className="modal-description">{battle.status === 'won' ? '选择一位新伙伴，然后前往印记工坊，为下一场遭遇做准备。' : '你的契约仍然保留。调整阵型，或到工坊重新组合印记，再试一次。'}</p>{battle.status === 'won' ? <div className="reward-cards">{[4, 7, 6].map((t, i) => { const card = makeCard((t + battle.encounter - 1) % 8, `reward-${battle.encounter}-${i}`); return <button key={card.id} onClick={() => { const next = [...deck, card]; setDeck(next); restart(next, battle.encounter + 1); clearForge(); setMode('forge'); setNotice(`${card.name} 加入了你的牌组。`) }}><CardFace onInspect={setInspected} card={card}/><span>选择伙伴 ＋</span></button> })}</div> : <div className="modal-actions"><button className="secondary" onClick={() => { restart(); setMode('forge') }}>前往工坊</button><button className="primary" onClick={() => restart()}>再次挑战 →</button></div>}</Modal>}
   </div>
 }
+
 
 
 
