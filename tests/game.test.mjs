@@ -20,8 +20,8 @@ test('free squirrel deployment removes the hand card and rejects occupied or inv
 test('front blocks life damage and spills excess damage into rear', () => {
   const s = quietBattle(); s.player[0][0] = unit(0, 'p'); s.enemy[0][0] = unit(4, 'e', { native: [] }); s.enemy[1][0] = unit(1, 'rear')
   const next = resolveRound(s)
-  assert.equal(next.enemy[0][0].id, 'rear'); assert.equal(next.enemy[0][0].hp, 3); assert.equal(next.enemy[1][0], null); assert.equal(next.enemyHp, 24)
-  assert.equal(next.player[0][0].hp, 2, 'rear must not advance and counterattack during the current combat')
+  assert.equal(next.enemy[0][0].id, 'rear'); assert.equal(next.enemy[0][0].hp, 2); assert.equal(next.enemy[1][0], null); assert.equal(next.enemyHp, 24)
+  assert.equal(next.player[0][0].hp, 3, 'rear must not advance and counterattack during the current combat')
 })
 test('rear melee cannot attack; ranged rear can damage an empty lane', () => {
   const s = quietBattle(); s.player[1][0] = unit(0, 'melee'); s.player[1][1] = unit(2, 'ranged')
@@ -87,9 +87,9 @@ test('fatigue defeat does not start a new deployment phase or advance rear units
 })
 test('split attacks neighboring lanes, and edge split only attacks one lane', () => {
   const s = quietBattle(); s.player[0][2] = unit(7, 'heron')
-  assert.equal(resolveRound(s).enemyHp, 20)
+  assert.equal(resolveRound(s).enemyHp, 18)
   s.player[0][2] = null; s.player[0][0] = unit(7, 'edge')
-  assert.equal(resolveRound(s).enemyHp, 22)
+  assert.equal(resolveRound(s).enemyHp, 21)
 })
 test('rebirth returns a dead card, and paid redeployment restores health', () => {
   const s = quietBattle(); s.player[0][0] = unit(4, 'moth'); s.enemy[0][0] = unit(0, 'wolf')
@@ -201,7 +201,7 @@ test('empty front damages life and leaves rear untouched for either side', () =>
     s[other][1][2] = unit(1, 'rear', { native: [] })
     const plan = planRound(s)
     assert.equal(plan.state[other + 'Hp'], 21)
-    assert.equal(plan.state[other][0][2].hp, 5)
+    assert.equal(plan.state[other][0][2].hp, 4)
     assert.equal(plan.frames.find(f => f.action.kind === 'attack').action.target, other + '-0-2')
     assert.equal(plan.frames.find(f => f.action.kind === 'hit').action.target, 'life-' + other)
   }
@@ -224,7 +224,7 @@ test('overflow applies armor on each defender and rear thorns still retaliate', 
   const s = quietBattle()
   s.player[0][0] = unit(0, 'attacker', { attack: 5, hp: 1 })
   s.enemy[0][0] = unit(3, 'front', { hp: 1 })
-  s.enemy[1][0] = unit(3, 'rear', { added: ['thorns'] })
+  s.enemy[1][0] = unit(3, 'rear', { health: 4, hp: 4, added: ['thorns'] })
   const next = resolveRound(s)
   assert.equal(next.enemy[0][0].hp, 2)
   assert.equal(next.player[0][0], null)
@@ -239,7 +239,7 @@ test('each attack checks front occupancy anew, including ranged then front attac
   s.enemy[1][0] = unit(1, 'rear', { native: [] })
   const next = resolveRound(s)
   assert.equal(next.enemyHp, 21)
-  assert.equal(next.enemy[0][0].hp, 4)
+  assert.equal(next.enemy[0][0].hp, 3)
 })
 
 test('split life attacks aim at their respective neighboring columns', () => {

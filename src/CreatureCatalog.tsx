@@ -14,7 +14,7 @@ export function CreatureCatalog() {
       {cards.map(card => <article className="catalog-entry" key={card.id} aria-label={card.name}>
         <CardFace card={card} />
         <div className="catalog-description">
-          <h2>{card.name}<small>{card.cost ? `${card.cost} 点献祭费用` : '免费召唤'}</small></h2>
+          <h2>{card.name}<small>{card.cost ? `${card.cost} 费` : '免费召唤'}</small></h2>
           {sigils(card).length ? sigils(card).map(sigil => <p key={sigil}><strong>{SIGILS[sigil].icon} {SIGILS[sigil].name}</strong>{SIGILS[sigil].description}</p>) : <p className="catalog-muted">无天生印记</p>}
         </div>
       </article>)}
