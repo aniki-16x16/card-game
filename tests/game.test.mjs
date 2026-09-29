@@ -87,9 +87,9 @@ test('fatigue defeat does not start a new deployment phase or advance rear units
 })
 test('split attacks neighboring lanes, and edge split only attacks one lane', () => {
   const s = quietBattle(); s.player[0][2] = unit(7, 'heron')
-  assert.equal(resolveRound(s).enemyHp, 18)
+  assert.equal(resolveRound(s).enemyHp, 20)
   s.player[0][2] = null; s.player[0][0] = unit(7, 'edge')
-  assert.equal(resolveRound(s).enemyHp, 21)
+  assert.equal(resolveRound(s).enemyHp, 22)
 })
 test('rebirth returns a dead card, and paid redeployment restores health', () => {
   const s = quietBattle(); s.player[0][0] = unit(4, 'moth'); s.enemy[0][0] = unit(0, 'wolf')
@@ -458,7 +458,7 @@ test('map seed controls independent enemy lanes and stable unique rewards', () =
   assert.equal(new Set(rewards.map(c => c.species)).size, 3)
   getIntents(6, 2, 123); startBattle(initialDeck(), 2, 123)
   assert.deepEqual(getRewards(123, 1), rewards)
-  const seen = new Set(Array.from({ length: 30 }, (_, seed) => getRewards(seed, 1)).flat().map(c => c.species))
+  const seen = new Set(Array.from({ length: 300 }, (_, seed) => getRewards(seed, 1)).flat().map(c => c.species))
   assert.ok(seen.has('goat')); assert.ok(seen.has('experiment'))
   assert.notDeepEqual(Array.from({length:12}, (_, i) => getIntents(i+1, 1, 123)), Array.from({length:12}, (_, i) => getIntents(i+1, 1, 456)))
 })

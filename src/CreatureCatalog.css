@@ -26,3 +26,14 @@
   .catalog-entry .card-stats { font-size: 21px; }
   .catalog-description h2 { align-items: flex-start; flex-direction: column; }
 }
+.catalog-filters { margin-bottom: 28px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px; font-size: 14px; color: #afc29b; }
+.catalog-tribes { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px; }
+.catalog-tribes button { background: #21352b; border: 1px solid #657c4644; padding: 9px 13px; border-radius: 5px; }
+.catalog-tribes button[aria-pressed=true] { background: #c3d695; color: #18271d; }
+.catalog-filters select, .catalog-filters input:not([type=checkbox]) { border: 1px solid #657c4666; background: #192b23; color: #dce7c7; border-radius: 4px; padding: 9px; font: inherit; }
+.catalog-filters p { flex-basis: 100%; }
+.catalog-description strong small { font-size: 10px; color: #91a57c; font-weight: normal; }
+.catalog-description p + p { margin-top: 8px; }
+.catalog-empty { color: #b2c49e; padding: 40px 0; }
+.card-tribe { position: absolute; top: 13%; left: 8%; font-size: 10px; color: #9db48a; letter-spacing: 1px; }
+.card-face .card-sigils { max-width: 88%; flex-wrap: wrap; }
