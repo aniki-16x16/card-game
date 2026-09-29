@@ -1,0 +1,37 @@
+/* A single 3:4 card plane is shared by hand and field; only the camera scales it. */
+.camera-field { position: relative; display: flex; flex-direction: column; gap: 0; overflow: hidden; }
+.camera-head { flex: 0 0 auto; align-self: center; overflow: visible; }
+.camera-head .combat-columns { height: 24px; }
+.camera-head .combat-intents { height: 38px; }
+.camera-field .combat-columns, .camera-field .combat-intents, .camera-field .combat-rank {
+  grid-template-columns: 38px repeat(5, var(--lane-width)); gap: 12px;
+}
+.camera-head .combat-columns, .camera-head .combat-intents { grid-template-columns: var(--header-label) repeat(5, var(--lane-width)); gap: var(--header-gap); }
+.camera-viewport { flex: 1; min-height: 0; overflow: clip; touch-action: none; }
+.camera-space { position: relative; margin-inline: auto; transition: transform 220ms cubic-bezier(.22, .8, .24, 1); will-change: transform; }
+.camera-world { width: var(--world-width); position: absolute; top: 0; left: 0; transform-origin: top left; }
+.camera-world .combat-side { display: flex; flex-direction: column; gap: 12px; }
+.camera-world .combat-side.player { margin-top: 12px; padding-top: 20px; border-top: 1px solid #b6c78638; }
+.camera-world .combat-rank { flex: none; }
+.camera-world .combat-slot { aspect-ratio: 3 / 4; height: auto; width: var(--lane-width); padding: 0; border: none; box-shadow: inset 0 0 0 1px #8fae6550; }
+.camera-world .combat-side.enemy .combat-slot { box-shadow: inset 0 0 0 1px #a8896755; }
+.camera-world .combat-slot.deployable { outline: 1px dashed #b5d481aa; outline-offset: -1px; }
+.camera-world .combat-slot:focus-visible { outline: 2px solid #e0eab3; outline-offset: -3px; }
+.camera-world .combat-slot.filled { background: none; }
+.camera-world .combat-slot .card-face, .combat-hand .combat-hand-card .card-face { width: 100%; height: auto; aspect-ratio: 3 / 4; padding: 8%; container-type: inline-size; }
+.camera-world .card-face > .creature, .combat-hand .card-face > .creature { height: auto; position: absolute; width: 86%; left: 7%; top: 18%; margin: 0; }
+.camera-world .card-face .card-top, .combat-hand .card-face .card-top { font-size: 12cqw; gap: 3px; white-space: nowrap; }
+.camera-world .card-face .cost, .combat-hand .card-face .cost { font-size: 14cqw; }
+.camera-world .card-face .cost small, .combat-hand .card-face .cost small { font-size: 8cqw; }
+.camera-world .card-face .card-sigils, .combat-hand .card-face .card-sigils { position: absolute; left: 5%; right: 5%; bottom: 21%; min-height: 0; gap: 5%; }
+.camera-world .card-face .card-sigils > span, .combat-hand .card-face .card-sigils > span { font-size: 16cqw; }
+.camera-world .card-face .card-sigils small, .combat-hand .card-face .card-sigils small { font-size: 10cqw; }
+.camera-world .card-face .card-stats, .combat-hand .card-face .card-stats { bottom: 6%; left: 8%; right: 8%; font-size: 21cqw; }
+.camera-world .card-face .card-stats i, .combat-hand .card-face .card-stats i { font-size: 11cqw; }
+@media (max-width: 760px) {
+  .camera-world .rank-label, .camera-world .rank-label b { font-size: 15px; }
+}
+
+.combat-hand { scrollbar-width: none; }
+.combat-hand::-webkit-scrollbar { display: none; }
+@media (prefers-reduced-motion: reduce) { .camera-space { transition: none; } }
