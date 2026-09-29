@@ -1,17 +1,20 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { initialDeck, makeCard, startBattle, deploy, planRound, resolveRound, transfer, load } from '../src/game.ts'
+import { initialDeck, makeCard, makeSquirrel, selectSummon, markSacrifice, drawCard, startBattle, deploy, planRound, resolveRound, transfer, load } from '../src/game.ts'
 
 const unit = (index, id, patch = {}) => { const card = makeCard(index, id); return { ...card, hp: card.health, ...patch } }
 const quietBattle = () => ({ ...startBattle(initialDeck()), intents: [] })
 
-test('deployment charges energy, removes the hand card, and rejects occupied or unaffordable slots', () => {
-  const start = startBattle(initialDeck())
-  const next = deploy(start, 'starter-0', 0, 0)
-  assert.equal(next.energy, 1); assert.equal(next.hand.length, 4); assert.equal(next.player[0][0].hp, 2)
-  assert.equal(start.player[0][0], null)
-  assert.equal(deploy(next, 'starter-1', 0, 0), next)
-  assert.equal(deploy(next, 'starter-2', 0, 1), next)
+test('free squirrel deployment removes the hand card and rejects occupied or invalid slots', () => {
+  const start = selectSummon(startBattle(initialDeck()), 'squirrel-0')
+  const next = deploy(start, 'squirrel-0', 0, 0)
+  assert.equal(next.hand.length, 3); assert.equal(next.player[0][0].hp, 1)
+  assert.equal(start.player[0][0], null); assert.equal(next.summon, null)
+  assert.equal(deploy(next, 'starter-0', 0, 1), next, 'unpaid cards cannot deploy')
+  const selected = selectSummon({ ...next, hand: [...next.hand, makeSquirrel('extra')] }, 'extra')
+  assert.equal(deploy(selected, 'extra', 0, 0), selected)
+  assert.equal(deploy(selected, 'extra', 0, 5), selected)
+  assert.equal(deploy(selected, 'extra', 0, 1.5), selected)
 })
 test('front blocks life damage and spills excess damage into rear', () => {
   const s = quietBattle(); s.player[0][0] = unit(0, 'p'); s.enemy[0][0] = unit(4, 'e', { native: [] }); s.enemy[1][0] = unit(1, 'rear')
@@ -66,16 +69,16 @@ test('occupied front prevents promotion on both sides', () => {
 })
 
 test('deploying into an empty rear lane waits until the next round to advance', () => {
-  const s = deploy(quietBattle(), 'starter-0', 1, 4)
+  const s = deploy(selectSummon(quietBattle(), 'squirrel-0'), 'squirrel-0', 1, 4)
   assert.equal(s.player[0][4], null)
   const next = resolveRound(s)
   assert.equal(next.enemyHp, 24)
-  assert.equal(next.player[0][4].id, 'starter-0')
+  assert.equal(next.player[0][4].id, 'squirrel-0')
   assert.equal(next.player[1][4], null)
 })
 
 test('fatigue defeat does not start a new deployment phase or advance rear units', () => {
-  const s = quietBattle(); s.deck = []; s.playerHp = 1; s.player[1][0] = unit(0, 'rear')
+  const s = quietBattle(); s.deck = []; s.squirrelDeck = []; s.playerHp = 1; s.player[1][0] = unit(0, 'rear')
   const next = resolveRound(s)
   assert.equal(next.status, 'lost')
   assert.equal(next.player[0][0], null)
@@ -87,12 +90,14 @@ test('split attacks neighboring lanes, and edge split only attacks one lane', ()
   s.player[0][2] = null; s.player[0][0] = unit(7, 'edge')
   assert.equal(resolveRound(s).enemyHp, 22)
 })
-test('rebirth returns a dead card, and redeployment restores health while spending energy', () => {
+test('rebirth returns a dead card, and paid redeployment restores health', () => {
   const s = quietBattle(); s.player[0][0] = unit(4, 'moth'); s.enemy[0][0] = unit(0, 'wolf')
   const next = resolveRound(s); assert.equal(next.player[0][0], null); assert.ok(next.hand.some(c => c.id === 'moth'))
   assert.equal('hp' in next.hand.find(c => c.id === 'moth'), false)
-  const redeployed = deploy(next, 'moth', 0, 1)
-  assert.equal(redeployed.player[0][1].hp, 1); assert.equal(redeployed.energy, next.energy - 1)
+  next.player[0][1] = { ...makeSquirrel('offering'), hp: 1 }
+  const paid = markSacrifice(selectSummon(next, 'moth'), 'offering').state
+  const redeployed = deploy(paid, 'moth', 0, 1)
+  assert.equal(redeployed.player[0][1].hp, 1); assert.equal(redeployed.summon, null)
 })
 test('lethal player attack stops enemy counterattack; depleted life is clamped to zero', () => {
   const s = quietBattle(); s.enemyHp = 1; s.playerHp = 1; s.player[0][0] = unit(0, 'p'); s.enemy[0][1] = unit(0, 'e')
@@ -101,7 +106,7 @@ test('lethal player attack stops enemy counterattack; depleted life is clamped t
   assert.equal(resolveRound(loss).status, 'lost')
 })
 test('deck exhaustion causes increasing fatigue and can end the battle', () => {
-  const s = quietBattle(); s.deck = []; s.playerHp = 3
+  const s = quietBattle(); s.deck = []; s.squirrelDeck = []; s.playerHp = 3
   const next = resolveRound(s); assert.equal(next.playerHp, 2); assert.equal(next.fatigue, 1)
   next.intents = []
   assert.equal(resolveRound(next).status, 'lost')
@@ -239,4 +244,110 @@ test('each attack checks front occupancy anew, including ranged then front attac
 test('split life attacks aim at their respective neighboring columns', () => {
   const s = quietBattle(); s.player[0][2] = unit(7, 'split')
   assert.deepEqual(planRound(s).frames.filter(f => f.action.kind === 'attack').map(f => f.action.target), ['enemy-0-1', 'enemy-0-3'])
+})
+
+
+test('sacrifice marks are reversible and never remove units before reaching cost', () => {
+  const s = quietBattle(); s.player[0][0] = unit(5, 'first'); s.player[1][2] = unit(5, 'second')
+  const selected = selectSummon(s, 'starter-0')
+  const marked = markSacrifice(selected, 'first')
+  assert.equal(marked.frames.length, 0)
+  assert.deepEqual(marked.state.summon.sacrifices, ['first'])
+  assert.deepEqual(marked.state.player, s.player)
+  assert.deepEqual(selected.summon.sacrifices, [])
+  const unmarked = markSacrifice(marked.state, 'first').state
+  assert.deepEqual(unmarked.summon.sacrifices, [])
+  const canceled = selectSummon(marked.state, null)
+  assert.equal(canceled.summon, null); assert.deepEqual(canceled.player, s.player)
+  const switched = selectSummon(marked.state, 'starter-1')
+  assert.deepEqual(switched.summon.sacrifices, [])
+  assert.equal(markSacrifice(marked.state, 'enemy-unit').state, marked.state)
+})
+
+test('meeting cost sacrifices immediately, locks the card and turn, and frees deployment slots', () => {
+  const s = quietBattle()
+  for (let row = 0; row < 2; row++) for (let col = 0; col < 5; col++) s.player[row][col] = unit(5, row + '-' + col)
+  const selected = selectSummon(s, 'starter-0')
+  const first = markSacrifice(selected, '0-0').state
+  const paid = markSacrifice(first, '1-4')
+  assert.equal(paid.state.player[0][0], null); assert.equal(paid.state.player[1][4], null)
+  assert.equal(paid.state.summon.paid, true)
+  assert.deepEqual(paid.frames.map(f => f.action.cause), ['sacrificed', 'sacrificed'])
+  assert.equal(selectSummon(paid.state, null), paid.state)
+  assert.equal(selectSummon(paid.state, 'starter-1'), paid.state)
+  assert.equal(resolveRound(paid.state), paid.state)
+  assert.equal(drawCard(paid.state, 'deck'), paid.state)
+  assert.equal(deploy(paid.state, 'starter-1', 0, 0), paid.state)
+  assert.equal(deploy(paid.state, 'starter-0', 0, 1), paid.state)
+  const deployed = deploy(paid.state, 'starter-0', 1, 4)
+  assert.equal(deployed.player[1][4].id, 'starter-0')
+  assert.equal(deployed.summon, null)
+  assert.equal(deployed.player.flat().filter(Boolean).length, 9)
+  assert.equal(s.player.flat().filter(Boolean).length, 10)
+})
+
+test('sacrifice triggers death/rebirth but not thorns or killed causes', () => {
+  const s = quietBattle(); s.player[0][0] = unit(4, 'moth', { added: ['thorns'] })
+  s.player[1][0] = unit(5, 'rear')
+  const paid = markSacrifice(selectSummon(s, 'starter-1'), 'moth')
+  assert.equal(paid.state.player[0][0], null)
+  assert.equal(paid.state.player[1][0].id, 'rear', 'no immediate promotion')
+  assert.equal(paid.state.playerHp, 24)
+  assert.equal(paid.state.hand.find(c => c.id === 'moth').hp, undefined)
+  assert.deepEqual(paid.frames.map(f => [f.action.kind, f.action.cause]), [['death', 'sacrificed']])
+  const combat = quietBattle(); combat.player[0][0] = unit(0, 'wolf'); combat.enemy[0][0] = unit(4, 'enemy-moth')
+  assert.equal(planRound(combat).frames.find(f => f.action.kind === 'death').action.cause, 'killed')
+})
+
+test('squirrel pile is separate and both piles share one draw per round', () => {
+  const s = quietBattle(), original = structuredClone(s)
+  assert.equal(s.hand.length, 4); assert.equal(s.squirrelDeck.length, 9)
+  assert.deepEqual(s.hand.at(-1), makeSquirrel('squirrel-0'))
+  const squirrelDraw = drawCard(s, 'squirrelDeck')
+  assert.equal(squirrelDraw.hand.at(-1).species, 'squirrel')
+  assert.equal(squirrelDraw.squirrelDeck.length, 8)
+  assert.equal(squirrelDraw.deck.length, s.deck.length)
+  assert.equal(drawCard(squirrelDraw, 'deck'), squirrelDraw)
+  assert.equal(drawCard(squirrelDraw, 'squirrelDeck'), squirrelDraw)
+  const next = resolveRound(squirrelDraw)
+  assert.equal(next.canDraw, true)
+  assert.equal(next.hand.length, squirrelDraw.hand.length, 'round end does not auto-draw')
+  const mainDraw = drawCard(next, 'deck')
+  assert.equal(mainDraw.hand.at(-1).id, s.deck[0].id)
+  assert.equal(mainDraw.squirrelDeck.length, 8)
+  assert.equal(mainDraw.canDraw, false)
+  assert.deepEqual(s, original)
+})
+
+test('empty pile cannot consume a draw; fatigue requires both piles empty', () => {
+  const s = quietBattle(); s.deck = []
+  assert.equal(drawCard(s, 'deck'), s)
+  assert.equal(resolveRound(s).playerHp, 24)
+  assert.equal(drawCard(s, 'squirrelDeck').canDraw, false)
+  s.squirrelDeck = []
+  const next = resolveRound(s)
+  assert.equal(next.playerHp, 23); assert.equal(next.canDraw, false)
+})
+
+test('free selection can cancel, cannot sacrifice, and unfinished marks clear on ending turn', () => {
+  const s = quietBattle(); s.player[0][0] = unit(5, 'offering')
+  const free = selectSummon(s, 'squirrel-0')
+  assert.equal(markSacrifice(free, 'offering').state, free)
+  assert.equal(selectSummon(free, null).summon, null)
+  const marked = markSacrifice(selectSummon(s, 'starter-0'), 'offering').state
+  const next = resolveRound(marked)
+  assert.equal(next.summon, null); assert.equal(next.player[0][0].id, 'offering')
+})
+
+test('zero-attack squirrels do not attack or trigger thorns; support can enable an attack', () => {
+  const s = quietBattle()
+  s.player[0][0] = { ...makeSquirrel('squirrel'), hp: 1 }
+  s.enemy[0][0] = unit(6, 'bear', { attack: 0 })
+  const plan = planRound(s)
+  assert.equal(plan.frames.filter(f => f.action.kind === 'attack').length, 0)
+  assert.equal(plan.state.player[0][0].hp, 1)
+  s.player[1][0] = unit(1, 'support')
+  const boosted = planRound(s)
+  assert.equal(boosted.frames.filter(f => f.action.kind === 'attack').length, 1)
+  assert.equal(boosted.state.player[0][0].id, 'support')
 })

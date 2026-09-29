@@ -61,7 +61,7 @@ export async function animateBattleAction(action: BattleAction, signal: AbortSig
         run(target, [{ transform: 'translateX(0)', filter: 'brightness(1)' }, { transform: reduced ? 'none' : 'translateX(-9px)', filter: 'brightness(1.8) sepia(.6)', offset: .2 }, { transform: reduced ? 'none' : 'translateX(7px)', offset: .45 }, { transform: 'translateX(0)', filter: 'brightness(1)' }], 460),
       ])
     } else if (action.kind === 'death') {
-      await run(target, [{ opacity: 1 }, { opacity: 0, transform: reduced ? 'none' : 'scale(.8)', filter: 'grayscale(1)' }], 260)
+      await run(target, [{ opacity: 1 }, { opacity: 0, transform: reduced ? 'none' : 'scale(.8)', filter: action.cause === 'sacrificed' ? 'sepia(1) saturate(3)' : 'grayscale(1)' }], 260)
     }
   } finally {
     signal.removeEventListener('abort', cancel)

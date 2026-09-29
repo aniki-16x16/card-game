@@ -1,17 +1,20 @@
 export type Sigil = 'ranged' | 'armor' | 'support' | 'thorns' | 'split' | 'rebirth'
-export type Species = 'wolf' | 'deer' | 'owl' | 'beetle' | 'moth' | 'fox' | 'bear' | 'heron'
+export type Species = 'wolf' | 'deer' | 'owl' | 'beetle' | 'moth' | 'fox' | 'bear' | 'heron' | 'squirrel'
 export type Card = { id: string; name: string; species: Species; attack: number; health: number; cost: number; native: Sigil[]; added: Sigil[]; capacity: number }
 export type Unit = Card & { hp: number }
 export type Board = (Unit | null)[][]
 export type Intent = { card: Card; row: number; col: number }
-export type Battle = { round: number; energy: number; maxEnergy: number; playerHp: number; enemyHp: number; player: Board; enemy: Board; hand: Card[]; deck: Card[]; intents: Intent[]; log: string[]; status: 'playing' | 'won' | 'lost'; fatigue: number; encounter: number }
+export type Summon = { cardId: string; sacrifices: string[]; paid: boolean }
+export type DrawPile = 'deck' | 'squirrelDeck'
+export type DeathCause = 'killed' | 'sacrificed'
+export type Battle = { round: number; playerHp: number; enemyHp: number; player: Board; enemy: Board; hand: Card[]; deck: Card[]; squirrelDeck: Card[]; canDraw: boolean; summon: Summon | null; intents: Intent[]; log: string[]; status: 'playing' | 'won' | 'lost'; fatigue: number; encounter: number }
 export const SIGILS: Record<Sigil, { name: string; icon: string; weight: number; description: string }> = {
   ranged: { name: '远射', icon: '↗', weight: 1, description: '位于后排时也能攻击同列；目标前排为空时直接伤害对方玩家。' },
   armor: { name: '硬甲', icon: '⬡', weight: 1, description: '每次受到攻击时，伤害减少 1，最低为 0。反伤不受此影响。' },
   support: { name: '鼓舞', icon: '✧', weight: 1, description: '位于后排时，使同列的友方前排攻击 +1。' },
   thorns: { name: '荆棘', icon: '✳', weight: 1, description: '被攻击后，对攻击者造成 1 点伤害，即使自身死亡。' },
   split: { name: '分袭', icon: '⋔', weight: 2, description: '改为攻击左右相邻两列，不攻击正前方；边缘只攻击一列。' },
-  rebirth: { name: '归魂', icon: '⟲', weight: 3, description: '死亡后返回手牌，仍需支付能量再次召唤。' },
+  rebirth: { name: '归魂', icon: '⟲', weight: 3, description: '死亡后返回手牌，献祭也会触发；再次召唤仍需支付献祭费用。' },
 }
 const templates: Omit<Card, 'id' | 'added'>[] = [
   { name: '苔原狼', species: 'wolf', attack: 3, health: 2, cost: 2, native: [], capacity: 3 },
@@ -25,6 +28,7 @@ const templates: Omit<Card, 'id' | 'added'>[] = [
 ]
 export function makeCard(index: number, id: string): Card { return { ...templates[index % templates.length], native: [...templates[index % templates.length].native], added: [], id } }
 export function initialDeck(): Card[] { return [0, 3, 2, 1, 5, 4, 7, 6, 0, 3, 2, 5].map((t, i) => makeCard(t, `starter-${i}`)) }
+export function makeSquirrel(id: string): Card { return { id, name: '松鼠', species: 'squirrel', attack: 0, health: 1, cost: 0, native: [], added: [], capacity: 3 } }
 export const sigils = (card: Card): Sigil[] => [...card.native, ...card.added]
 export const load = (card: Card): number => card.added.reduce((sum, s) => sum + SIGILS[s].weight, 0)
 export const emptyBoard = (): Board => [Array(5).fill(null), Array(5).fill(null)]
@@ -48,17 +52,62 @@ export function getIntents(round: number, encounter: number): Intent[] {
   return intents
 }
 export function startBattle(cards: Card[], encounter = 1): Battle {
-  return { round: 1, energy: 3, maxEnergy: 3, playerHp: 24, enemyHp: 20 + encounter * 4, player: emptyBoard(), enemy: emptyBoard(), hand: structuredClone(cards.slice(0, 5)), deck: structuredClone(cards.slice(5)), intents: getIntents(1, encounter), log: ['林间的雾气散开了。选择手牌，再选择己方空位部署。'], status: 'playing', fatigue: 0, encounter }
+  const squirrels = Array.from({ length: 10 }, (_, i) => makeSquirrel(`squirrel-${i}`))
+  return { round: 1, playerHp: 24, enemyHp: 20 + encounter * 4, player: emptyBoard(), enemy: emptyBoard(), hand: [...structuredClone(cards.slice(0, 3)), squirrels[0]], deck: structuredClone(cards.slice(3)), squirrelDeck: squirrels.slice(1), canDraw: true, summon: null, intents: getIntents(1, encounter), log: ['选择牌堆抽牌。松鼠免费部署；其他生物需要献祭己方单位。'], status: 'playing', fatigue: 0, encounter }
+}
+export function selectSummon(state: Battle, id: string | null): Battle {
+  if (state.status !== 'playing' || state.summon?.paid) return state
+  if (id !== null && !state.hand.some(card => card.id === id)) return state
+  return { ...state, summon: id === null ? null : { cardId: id, sacrifices: [], paid: false } }
+}
+// Both causes are deaths. Only combat removal is a kill; death effects run for either cause.
+function removeUnit(s: Battle, side: 'player' | 'enemy', row: number, col: number, cause: DeathCause): BattleAction {
+  const unit = s[side][row][col]!
+  s[side][row][col] = null
+  s.log.unshift(`${side === 'player' ? '我方' : '敌方'} ${unit.name} ${cause === 'sacrificed' ? '被献祭' : '被击杀'}。`)
+  if (sigils(unit).includes('rebirth')) {
+    const { hp: _hp, ...restored } = unit
+    if (side === 'player') { s.hand.push(restored); s.log.unshift(`${unit.name} 归魂，返回手牌。`) }
+    else s.intents.push({ card: restored, row, col })
+  }
+  return { kind: 'death', cause, target: `${side}-${row}-${col}`, label: `${unit.name} ${cause === 'sacrificed' ? '献祭' : '被击杀'}` }
+}
+export function markSacrifice(state: Battle, id: string): { state: Battle; frames: BattleFrame[] } {
+  const summon = state.summon, card = state.hand.find(c => c.id === summon?.cardId)
+  if (state.status !== 'playing' || !summon || summon.paid || !card || card.cost === 0 || !state.player.flat().some(u => u?.id === id)) return { state, frames: [] }
+  const s = structuredClone(state), next = s.summon!
+  next.sacrifices = next.sacrifices.includes(id) ? next.sacrifices.filter(mark => mark !== id) : [...next.sacrifices, id]
+  const frames: BattleFrame[] = []
+  if (next.sacrifices.length === card.cost) {
+    next.paid = true
+    for (const mark of next.sacrifices) {
+      for (let row = 0; row < 2; row++) for (let col = 0; col < 5; col++) {
+        if (s.player[row][col]?.id === mark) {
+          const action = removeUnit(s, 'player', row, col, 'sacrificed')
+          frames.push({ action, state: structuredClone(s) })
+        }
+      }
+    }
+    next.sacrifices = []
+  }
+  return { state: s, frames }
+}
+export function drawCard(state: Battle, pile: DrawPile): Battle {
+  if (state.status !== 'playing' || !state.canDraw || state.summon || !state[pile].length) return state
+  const s = structuredClone(state), card = s[pile].shift()!
+  s.hand.push(card); s.canDraw = false
+  s.log.unshift(`从${pile === 'deck' ? '主牌堆' : '松鼠牌堆'}抽到 ${card.name}。`)
+  return s
 }
 export function deploy(state: Battle, id: string, row: number, col: number): Battle {
   const card = state.hand.find(c => c.id === id)
-  if (state.status !== 'playing' || !card || card.cost > state.energy || !state.player[row] || col < 0 || col > 4 || state.player[row][col]) return state
+  if (state.status !== 'playing' || !card || state.summon?.cardId !== id || (card.cost > 0 && !state.summon.paid) || !Number.isInteger(row) || !Number.isInteger(col) || !state.player[row] || col < 0 || col > 4 || state.player[row][col]) return state
   const next = structuredClone(state)
-  next.player[row][col] = { ...card, hp: card.health }; next.hand = next.hand.filter(c => c.id !== id); next.energy -= card.cost
+  next.player[row][col] = { ...card, hp: card.health }; next.hand = next.hand.filter(c => c.id !== id); next.summon = null
   next.log.unshift(`部署 ${card.name} → ${col + 1} 列${row === 0 ? '前排' : '后排'}。`)
   return next
 }
-export type BattleAction = { kind: 'deploy' | 'attack' | 'hit' | 'advance' | 'death'; source?: string; target: string; label: string; amount?: number }
+export type BattleAction = { kind: 'deploy' | 'attack' | 'hit' | 'advance' | 'death'; source?: string; target: string; label: string; amount?: number; cause?: DeathCause }
 export type BattleFrame = { action: BattleAction; state: Battle }
 export function planRound(state: Battle): { frames: BattleFrame[]; state: Battle } {
   const frames: BattleFrame[] = []
@@ -66,8 +115,9 @@ export function planRound(state: Battle): { frames: BattleFrame[]; state: Battle
   return { frames, state: result }
 }
 export function resolveRound(state: Battle, record?: (action: BattleAction, state: Battle) => void): Battle {
-  if (state.status !== 'playing') return state
+  if (state.status !== 'playing' || state.summon?.paid) return state
   const s = structuredClone(state), addLog = (message: string) => s.log.unshift(message)
+  s.summon = null
   const emit = (action: BattleAction) => record?.(action, structuredClone(s))
   function checkEnd() {
     if (s.enemyHp <= 0) { s.enemyHp = 0; s.status = 'won'; return true }
@@ -80,13 +130,7 @@ export function resolveRound(state: Battle, record?: (action: BattleAction, stat
       for (let c = 0; c < 5; c++) for (const r of [1, 0]) {
         const unit = board[r][c]
         if (unit && unit.hp <= 0) {
-          board[r][c] = null; addLog(`${side === 'player' ? '我方' : '敌方'} ${unit.name} 倒下了。`)
-          if (sigils(unit).includes('rebirth')) {
-            const { hp: _hp, ...restored } = unit
-            if (side === 'player') { s.hand.push(restored); addLog(`${unit.name} 归魂，返回手牌。`) }
-            else s.intents.push({ card: restored, row: r, col: c })
-          }
-          emit({ kind: 'death', target: `${side}-${r}-${c}`, label: `${unit.name} 倒下` })
+          emit(removeUnit(s, side, r, c, 'killed'))
         }
       }
     }
@@ -111,6 +155,7 @@ export function resolveRound(state: Battle, record?: (action: BattleAction, stat
       const attacker = board[row][col]!
       if (row === 1 && !sigils(attacker).includes('ranged')) continue
       const support = row === 0 && board[1][col] && sigils(board[1][col]!).includes('support') ? 1 : 0, power = attacker.attack + support
+      if (power <= 0) continue
       const targets = sigils(attacker).includes('split') ? [col - 1, col + 1].filter(c => c >= 0 && c < 5) : [col]
       for (const targetCol of targets) {
         if (attacker.hp <= 0) break
@@ -146,9 +191,8 @@ export function resolveRound(state: Battle, record?: (action: BattleAction, stat
       }
     }
   }
-  s.round++; s.maxEnergy = Math.min(6, 3 + Math.floor((s.round - 1) / 2)); s.energy = s.maxEnergy
-  if (s.deck.length) s.hand.push(s.deck.shift()!)
-  else { s.fatigue++; s.playerHp -= s.fatigue; addLog(`牌库耗尽：疲劳造成 ${s.fatigue} 点生命伤害。`); emit({ kind: 'hit', target: 'life-player', amount: s.fatigue, label: `疲劳伤害 −${s.fatigue}` }) }
+  s.round++; s.canDraw = true
+  if (!s.deck.length && !s.squirrelDeck.length) { s.canDraw = false; s.fatigue++; s.playerHp -= s.fatigue; addLog(`两堆牌库耗尽：疲劳造成 ${s.fatigue} 点生命伤害。`); emit({ kind: 'hit', target: 'life-player', amount: s.fatigue, label: `疲劳伤害 −${s.fatigue}` }) }
   if (!checkEnd()) {
     // Start of the new round, before deployment: advance both sides once.
     // Never promote units during attack/death resolution.

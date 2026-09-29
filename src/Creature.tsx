@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import type { Species } from './game'
 export function Creature({ species, small = false }: { species: Species; small?: boolean }) {
   const shapes: Record<Species, ReactNode> = {
+    squirrel: <><path d="M70 80C108 87 115 44 94 23 78 9 65 24 77 38c20 16 15 31-2 27Z"/><path d="m37 39-3-23 17 14 14 4 8 15-11 15 10 22-12 13H29l5-16 8-19-15-9Z"/><path d="M45 64q23 8 14 26H37Z" className="shade"/><circle cx="49" cy="44" r="4" className="eye"/><path d="m27 51 9 1-4 6Z" className="eye"/><path d="m57 72 15-4-5 13-10-1Z" className="shade"/></>,
     wolf: <><path d="M38 51 28 17 53 35 67 32 91 14 85 54 71 84 58 98 43 78Z"/><path d="m38 51 18 12 29-9-15 22-12 22-3-24Z" className="shade"/><path d="m40 53 12 4-5 6Zm28 4 13-7-7 12Z" className="eye"/><path d="m53 78 11-2-6 8Z" className="eye"/></>,
     fox: <><path d="m28 16 29 21 30-21-5 43-23 35-26-31Z"/><path d="m33 60 24 8 25-11-23 37Z" className="shade"/><path d="m37 50 13 7-8 3Zm29 7 13-9-5 12Z" className="eye"/><path d="m54 78 10-1-5 8Z" className="eye"/></>,
     deer: <><path d="m49 46-9-17-13-7-4-15M38 27 40 9M29 23 16 27M70 46l9-17 13-7 5-15M81 27 80 9M91 23l13 4" fill="none" stroke="currentColor" strokeWidth="5"/><path d="m44 44 15-7 15 7 2 28-17 25-17-25-17-23Z"/><path d="m74 44 22 5-21 17M44 45 21 49l22 17"/><path d="m47 60 8 2-3 5Zm17 2 8-2-4 7Z" className="eye"/></>,

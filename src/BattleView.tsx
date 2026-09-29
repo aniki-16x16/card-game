@@ -1,4 +1,4 @@
-import type { Battle, Card, Unit } from './game'
+import type { Battle, Card, DrawPile, Unit } from './game'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { CardFace } from './Cards'
@@ -11,6 +11,8 @@ type Props = {
   canForge: boolean
   onSelect: (id: string | null) => void
   onDeploy: (row: number, col: number) => void
+  onSacrifice: (id: string) => void
+  onDraw: (pile: DrawPile) => void
   onInspect: (card: Card | Unit) => void
   onEnd: () => void
   onForge: () => void
@@ -30,6 +32,10 @@ function Life({ value, max, enemy = false }: { value: number; max: number; enemy
 export function BattleView(props: Props) {
   const { battle, selected, settling, onInspect } = props
   const card = battle.hand.find(c => c.id === selected)
+  const choosingSacrifices = !!card && card.cost > 0 && !battle.summon?.paid
+  const choosingSlot = !!card && !choosingSacrifices
+  const availableSacrifices = battle.player.flat().filter(Boolean).length
+  const locked = !!battle.summon?.paid
   const viewport = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ width: 900, height: 600 })
   const screen = useRef<HTMLDivElement>(null)
@@ -112,12 +118,13 @@ export function BattleView(props: Props) {
           <span className="rank-label">{side === 'enemy' ? '敌方' : '我方'}<b>{row === 0 ? '前排' : '后排'}</b></span>
           {battle[side][row].map((unit, col) => <button
             key={col} data-motion={`${side}-${row}-${col}`} data-slot={`${side}-${row}-${col}`}
-            className={`combat-slot ${unit ? 'filled' : ''} ${side === 'player' && !unit && card && card.cost <= battle.energy && !settling ? 'deployable' : ''}`}
+            className={`combat-slot ${unit ? 'filled' : ''} ${side === 'player' && !settling ? (!unit && choosingSlot ? 'deployable' : unit && choosingSacrifices ? 'sacrificable' : '') : ''} ${side === 'player' && unit && battle.summon?.sacrifices.includes(unit.id) ? 'sacrifice-marked' : ''}`}
             aria-label={`${side === 'player' ? '我方' : '敌方'}${row === 0 ? '前排' : '后排'}第${col + 1}列${unit ? ` ${unit.name}` : ' 空位'}`}
+            aria-pressed={side === 'player' && unit && choosingSacrifices ? battle.summon?.sacrifices.includes(unit.id) : undefined}
             disabled={settling}
-            onClick={() => { if (unit) onInspect(unit); else if (side === 'player') props.onDeploy(row, col) }}
+            onClick={() => { if (unit && side === 'player' && choosingSacrifices) props.onSacrifice(unit.id); else if (unit) onInspect(unit); else if (side === 'player' && choosingSlot) props.onDeploy(row, col) }}
             onContextMenu={event => { if (unit) { event.preventDefault(); onInspect(unit) } }}
-          >{unit ? <CardFace card={unit} onInspect={onInspect} /> : <span className="vacant-mark">{side === 'player' && card ? '+' : '·'}</span>}</button>)}
+          >{unit ? <><CardFace card={unit} onInspect={onInspect} />{side === 'player' && battle.summon?.sacrifices.includes(unit.id) && <span className="sacrifice-badge">✕ 献祭标记</span>}</> : <span className="vacant-mark">{side === 'player' && choosingSlot ? '+' : '·'}</span>}</button>)}
         </div>)}
       </div>)}
       </div></div></div>
@@ -125,15 +132,18 @@ export function BattleView(props: Props) {
 
     <aside className="combat-rail right-rail" aria-label="战斗操作">
       <button className="rail-forge" disabled={!props.canForge || settling} onClick={props.onForge}>⌘ 印记工坊</button>
-      <div className="combat-resource"><span>可用能量</span><strong>{battle.energy}<small> / {battle.maxEnergy}</small></strong><div>{Array.from({ length: battle.maxEnergy }, (_, i) => <i key={i} className={i < battle.energy ? 'lit' : ''}>◆</i>)}</div></div>
-      <div className="combat-instruction" role="status">{settling ? <p className="action-label">{props.actionLabel}</p> : card ? <><strong>{card.name}</strong><p>{card.cost > battle.energy ? '能量不足，请选择其他手牌。' : '点击己方空位部署'}</p><button onClick={() => props.onSelect(null)}>取消选择</button><button onClick={() => onInspect(card)}>查看印记</button></> : <p>点击手牌部署<br/>右键卡片查看印记</p>}</div>
-      <div className="combat-deck">牌库 <strong>{battle.deck.length}</strong><span>手牌 {battle.hand.length}</span></div>
-      <button className="primary combat-end" disabled={settling || battle.status !== 'playing'} onClick={props.onEnd}>{settling ? '交锋中…' : '结束回合'} <span>→</span></button>
+      <div className="combat-resource"><span>{choosingSacrifices ? '已标记祭品' : locked ? '献祭已完成' : '场上可献祭'}</span><strong>{choosingSacrifices ? battle.summon?.sacrifices.length : locked ? card?.cost : availableSacrifices}{choosingSacrifices && <small> / {card.cost}</small>}</strong></div>
+      <div className="combat-instruction" role="status">{settling ? <p className="action-label">{props.actionLabel}</p> : card ? <><strong>{card.name}</strong><p>{choosingSacrifices ? `点击己方单位标记献祭，凑够 ${card.cost} 张立即移除。${availableSacrifices < card.cost ? '场上祭品不足，可取消后部署松鼠。' : ''}` : locked ? '献祭已完成，不可取消。请选择己方空位部署。' : '免费召唤：点击己方空位部署。'}</p>{!locked && <button onClick={() => props.onSelect(null)}>{choosingSacrifices ? '取消献祭' : '取消选择'}</button>}<button onClick={() => onInspect(card)}>查看印记</button></> : <p>点击手牌开始召唤<br/>右键卡片查看印记</p>}</div>
+      <div className="draw-piles" aria-label="选择抽牌牌堆"><span>{battle.canDraw ? '本回合可抽 1 张' : '本回合抽牌已结束'}</span>
+        <button disabled={settling || !!battle.summon || !battle.canDraw || !battle.deck.length || battle.status !== 'playing'} onClick={() => props.onDraw('deck')}>主牌堆 <strong>{battle.deck.length}</strong><small>抽取生物</small></button>
+        <button disabled={settling || !!battle.summon || !battle.canDraw || !battle.squirrelDeck.length || battle.status !== 'playing'} onClick={() => props.onDraw('squirrelDeck')}>松鼠牌堆 <strong>{battle.squirrelDeck.length}</strong><small>0 费 · 0 攻 / 1 血</small></button>
+      </div>
+      <button className="primary combat-end" disabled={settling || locked || battle.status !== 'playing'} onClick={props.onEnd}>{settling ? '行动中…' : locked ? '请先完成部署' : '结束回合'} <span>→</span></button>
     </aside>
 
     <section className="combat-hand" aria-label="你的手牌"><div className="combat-hand-strip">
-      {battle.hand.map(c => <button data-motion={`hand-${c.id}`} key={c.id} className={`combat-hand-card ${selected === c.id ? 'selected' : ''} ${c.cost > battle.energy ? 'unaffordable' : ''}`} aria-label={`选择 ${c.name}，${c.cost} 能量`} aria-pressed={selected === c.id} disabled={settling || battle.status !== 'playing'} onClick={() => props.onSelect(selected === c.id ? null : c.id)}><CardFace card={c} onInspect={onInspect} /></button>)}
-      {!battle.hand.length && <p className="hand-empty">手牌已空 · 结束回合抽取新牌</p>}
+      {battle.hand.map(c => <button data-motion={`hand-${c.id}`} key={c.id} className={`combat-hand-card ${selected === c.id ? 'selected' : ''} ${c.cost > availableSacrifices && selected !== c.id ? 'unaffordable' : ''}`} aria-label={`选择 ${c.name}，${c.cost} 献祭费用`} aria-pressed={selected === c.id} disabled={settling || locked || battle.status !== 'playing'} onClick={() => props.onSelect(selected === c.id ? null : c.id)}><CardFace card={c} onInspect={onInspect} /></button>)}
+      {!battle.hand.length && <p className="hand-empty">手牌已空 · 从右侧牌堆选择抽牌</p>}
     </div></section>
   </div>
 }

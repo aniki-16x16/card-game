@@ -185,3 +185,29 @@
   .combat-hand-card .card-face { height: 157px; }
   .combat-hand-card .card-face > .creature { height: 69px; }
 }
+
+/* Sacrifice selection and the two draw piles remain visible on narrow screens. */
+.right-rail { gap: 16px; }
+.combat-resource { margin-top: 0; }
+.combat-resource > strong { font-size: 30px; margin: 4px 0; }
+.combat-instruction { min-height: 85px; }
+.draw-piles { margin-top: auto; display: grid; gap: 7px; font-size: 13px; color: #b8c99d; }
+.draw-piles button { text-align: left; border: 1px solid #aabd7750; border-radius: 5px; padding: 9px; background: #afc18412; color: #d7e4bd; }
+.draw-piles button:not(:disabled):hover { background: #afc18430; border-color: #d7e4bd; }
+.draw-piles button:disabled { opacity: .45; cursor: default; }
+.draw-piles strong { float: right; }
+.draw-piles small { display: block; margin-top: 3px; color: #a4b78d; }
+.combat-slot.sacrificable { border: 2px dashed #cb9379; cursor: crosshair; }
+.combat-slot.sacrifice-marked { outline: 3px solid #e3a183; outline-offset: -3px; }
+.combat-slot.sacrifice-marked .card-face { filter: sepia(.5); }
+.sacrifice-badge { position: absolute; z-index: 2; top: 40%; left: 0; right: 0; padding: 8px 2px; color: #ffe9d6; background: #783b2ce8; font-size: 16px; pointer-events: none; }
+@media (max-width: 760px) {
+  .right-rail { gap: 9px; }
+  .combat-instruction, .combat-instruction:has(button) { display: block; min-height: 0; font-size: 12px; }
+  .combat-instruction strong, .combat-instruction p { display: block; }
+  .combat-instruction button { display: inline-block; margin-right: 9px; }
+  .draw-piles { grid-template-columns: 1fr 1fr; gap: 5px; }
+  .draw-piles > span { grid-column: 1 / -1; }
+  .draw-piles button { padding: 6px; font-size: 12px; }
+  .draw-piles small { font-size: 10px; }
+}
