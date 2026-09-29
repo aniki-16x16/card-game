@@ -1,5 +1,7 @@
-export type Sigil = 'ranged' | 'armor' | 'support' | 'thorns' | 'split' | 'rebirth'
-export type Species = 'wolf' | 'deer' | 'owl' | 'beetle' | 'moth' | 'fox' | 'bear' | 'heron' | 'squirrel'
+import { MAP_SEED, createRandom, deriveSeed } from './random.ts'
+
+export type Sigil = 'ranged' | 'armor' | 'support' | 'thorns' | 'split' | 'rebirth' | 'triple' | 'undying'
+export type Species = 'wolf' | 'deer' | 'owl' | 'beetle' | 'moth' | 'fox' | 'bear' | 'heron' | 'squirrel' | 'goat' | 'experiment'
 export type Card = { id: string; name: string; species: Species; attack: number; health: number; cost: number; native: Sigil[]; added: Sigil[]; capacity: number }
 export type Unit = Card & { hp: number }
 export type Board = (Unit | null)[][]
@@ -7,13 +9,15 @@ export type Intent = { card: Card; row: number; col: number }
 export type Summon = { cardId: string; sacrifices: string[]; paid: boolean }
 export type DrawPile = 'deck' | 'squirrelDeck'
 export type DeathCause = 'killed' | 'sacrificed'
-export type Battle = { round: number; playerHp: number; enemyHp: number; player: Board; enemy: Board; hand: Card[]; deck: Card[]; squirrelDeck: Card[]; canDraw: boolean; summon: Summon | null; intents: Intent[]; log: string[]; status: 'playing' | 'won' | 'lost'; fatigue: number; encounter: number }
+export type Battle = { mapSeed: number; round: number; playerHp: number; enemyHp: number; player: Board; enemy: Board; hand: Card[]; deck: Card[]; squirrelDeck: Card[]; canDraw: boolean; summon: Summon | null; intents: Intent[]; log: string[]; status: 'playing' | 'won' | 'lost'; fatigue: number; encounter: number }
 export const SIGILS: Record<Sigil, { name: string; icon: string; weight: number; description: string }> = {
   ranged: { name: '远射', icon: '↗', weight: 1, description: '位于后排时也能攻击同列；目标前排为空时直接伤害对方玩家。' },
   armor: { name: '硬甲', icon: '⬡', weight: 1, description: '每次受到攻击时，伤害减少 1，最低为 0。反伤不受此影响。' },
   support: { name: '鼓舞', icon: '✧', weight: 1, description: '位于后排时，使同列的友方前排攻击 +1。' },
   thorns: { name: '荆棘', icon: '✳', weight: 1, description: '被攻击后，对攻击者造成 1 点伤害，即使自身死亡。' },
   split: { name: '分袭', icon: '⋔', weight: 2, description: '改为攻击左右相邻两列，不攻击正前方；边缘只攻击一列。' },
+  triple: { name: '丰饶祭品', icon: 'Ⅲ', weight: 2, description: '献祭时提供 3 点部署费用，多出的点数不保留。' },
+  undying: { name: '永续祭品', icon: '∞', weight: 3, description: '献祭时不会死亡，保留位置、生命和印记；同一次召唤只能计费一次。被击杀时仍会死亡。' },
   rebirth: { name: '归魂', icon: '⟲', weight: 3, description: '死亡后返回手牌，献祭也会触发；再次召唤仍需支付献祭费用。' },
 }
 const templates: Omit<Card, 'id' | 'added'>[] = [
@@ -25,9 +29,11 @@ const templates: Omit<Card, 'id' | 'added'>[] = [
   { name: '赤尾狐', species: 'fox', attack: 2, health: 2, cost: 1, native: [], capacity: 3 },
   { name: '山脊熊', species: 'bear', attack: 3, health: 6, cost: 3, native: ['thorns'], capacity: 3 },
   { name: '裂风鹭', species: 'heron', attack: 2, health: 3, cost: 3, native: ['split'], capacity: 3 },
+  { name: '黑山羊', species: 'goat', attack: 0, health: 1, cost: 1, native: ['triple'], capacity: 3 },
+  { name: '实验生物', species: 'experiment', attack: 0, health: 1, cost: 1, native: ['undying'], capacity: 3 },
 ]
 export function makeCard(index: number, id: string): Card { return { ...templates[index % templates.length], native: [...templates[index % templates.length].native], added: [], id } }
-export function initialDeck(): Card[] { return [0, 3, 2, 1, 5, 4, 7, 6, 0, 3, 2, 5].map((t, i) => makeCard(t, `starter-${i}`)) }
+export function initialDeck(): Card[] { return [0, 3, 2, 1, 5, 4, 7, 6, 0, 3, 2, 5, 8, 9].map((t, i) => makeCard(t, `starter-${i}`)) }
 export function makeSquirrel(id: string): Card { return { id, name: '松鼠', species: 'squirrel', attack: 0, health: 1, cost: 0, native: [], added: [], capacity: 3 } }
 export const sigils = (card: Card): Sigil[] => [...card.native, ...card.added]
 export const load = (card: Card): number => card.added.reduce((sum, s) => sum + SIGILS[s].weight, 0)
@@ -43,17 +49,24 @@ export function transfer(deck: Card[], donorId: string, targetId: string, sigil:
   if (load(next) > target.capacity) return fail('容量不足，请勾选要覆盖的外来印记。')
   return { deck: deck.filter(c => c.id !== donorId).map(c => c.id === targetId ? next : c) }
 }
-export function getIntents(round: number, encounter: number): Intent[] {
+export function getIntents(round: number, encounter: number, mapSeed = MAP_SEED): Intent[] {
   if (round > 12) return []
-  const sequence = [3, 0, 2, 5, 1, 6, 7, 0, 2, 6, 7, 6], col = (round * 2 + 4) % 5
+  const sequence = [3, 0, 2, 5, 1, 6, 7, 0, 2, 6, 7, 6], col = createRandom(deriveSeed(mapSeed, `enemy:${encounter}:${round}`)).int(5)
   const card = makeCard(sequence[(round - 1) % sequence.length], `enemy-${round}-a`)
   const intents: Intent[] = [{ card, col, row: sigils(card).includes('ranged') || sigils(card).includes('support') ? 1 : 0 }]
-  if (round % 3 === 0 || (encounter > 1 && round % 2 === 0)) intents.push({ card: makeCard(5, `enemy-${round}-b`), col: (col + 2) % 5, row: 0 })
   return intents
 }
-export function startBattle(cards: Card[], encounter = 1): Battle {
+export function startBattle(cards: Card[], encounter = 1, mapSeed = MAP_SEED): Battle {
+  const shuffled = createRandom(deriveSeed(mapSeed, `deck:${encounter}`)).shuffle(cards)
   const squirrels = Array.from({ length: 10 }, (_, i) => makeSquirrel(`squirrel-${i}`))
-  return { round: 1, playerHp: 24, enemyHp: 20 + encounter * 4, player: emptyBoard(), enemy: emptyBoard(), hand: [...structuredClone(cards.slice(0, 3)), squirrels[0]], deck: structuredClone(cards.slice(3)), squirrelDeck: squirrels.slice(1), canDraw: true, summon: null, intents: getIntents(1, encounter), log: ['选择牌堆抽牌。松鼠免费部署；其他生物需要献祭己方单位。'], status: 'playing', fatigue: 0, encounter }
+  return { mapSeed, round: 1, playerHp: 24, enemyHp: 20 + encounter * 4, player: emptyBoard(), enemy: emptyBoard(), hand: [...structuredClone(shuffled.slice(0, 5)), squirrels[0]], deck: structuredClone(shuffled.slice(5)), squirrelDeck: squirrels.slice(1), canDraw: true, summon: null, intents: getIntents(1, encounter, mapSeed), log: ['选择牌堆抽牌。松鼠免费部署；其他生物需要献祭己方单位。'], status: 'playing', fatigue: 0, encounter }
+}
+export function getRewards(mapSeed: number, encounter: number): Card[] {
+  return createRandom(deriveSeed(mapSeed, `rewards:${encounter}`)).shuffle(templates.map((_, i) => i)).slice(0, 3).map((index, i) => makeCard(index, `reward-${encounter}-${i}`))
+}
+export const sacrificeValue = (card: Card): number => sigils(card).includes('triple') ? 3 : 1
+export function sacrificePoints(state: Battle, ids?: readonly string[]): number {
+  return state.player.flat().reduce((sum, unit) => sum + (unit && (!ids || ids.includes(unit.id)) ? sacrificeValue(unit) : 0), 0)
 }
 export function selectSummon(state: Battle, id: string | null): Battle {
   if (state.status !== 'playing' || state.summon?.paid) return state
@@ -78,12 +91,18 @@ export function markSacrifice(state: Battle, id: string): { state: Battle; frame
   const s = structuredClone(state), next = s.summon!
   next.sacrifices = next.sacrifices.includes(id) ? next.sacrifices.filter(mark => mark !== id) : [...next.sacrifices, id]
   const frames: BattleFrame[] = []
-  if (next.sacrifices.length === card.cost) {
+  const hasLandingSlot = s.player.flat().some(unit => !unit || (next.sacrifices.includes(unit.id) && !sigils(unit).includes('undying')))
+  if (sacrificePoints(s, next.sacrifices) >= card.cost && hasLandingSlot) {
     next.paid = true
     for (const mark of next.sacrifices) {
       for (let row = 0; row < 2; row++) for (let col = 0; col < 5; col++) {
         if (s.player[row][col]?.id === mark) {
-          const action = removeUnit(s, 'player', row, col, 'sacrificed')
+          const unit = s.player[row][col]!
+          const survives = sigils(unit).includes('undying')
+          if (survives) s.log.unshift(`${unit.name} 献祭提供 ${sacrificeValue(unit)} 点费用，永续祭品使其存活。`)
+          const action: BattleAction = survives
+            ? { kind: 'sacrifice', target: `player-${row}-${col}`, label: `${unit.name} 献祭后存活` }
+            : removeUnit(s, 'player', row, col, 'sacrificed')
           frames.push({ action, state: structuredClone(s) })
         }
       }
@@ -107,7 +126,7 @@ export function deploy(state: Battle, id: string, row: number, col: number): Bat
   next.log.unshift(`部署 ${card.name} → ${col + 1} 列${row === 0 ? '前排' : '后排'}。`)
   return next
 }
-export type BattleAction = { kind: 'deploy' | 'attack' | 'hit' | 'advance' | 'death'; source?: string; target: string; label: string; amount?: number; cause?: DeathCause }
+export type BattleAction = { kind: 'deploy' | 'attack' | 'hit' | 'advance' | 'death' | 'sacrifice'; source?: string; target: string; label: string; amount?: number; cause?: DeathCause }
 export type BattleFrame = { action: BattleAction; state: Battle }
 export function planRound(state: Battle): { frames: BattleFrame[]; state: Battle } {
   const frames: BattleFrame[] = []
@@ -135,7 +154,7 @@ export function resolveRound(state: Battle, record?: (action: BattleAction, stat
       }
     }
   }
-  const arriving = [...s.intents]
+  const arriving = [...s.intents].sort((a, b) => a.col - b.col || b.row - a.row).slice(0, 1)
   cleanup()
   for (const side of ['player', 'enemy'] as const) {
     if (side === 'enemy') {
@@ -208,7 +227,7 @@ export function resolveRound(state: Battle, record?: (action: BattleAction, stat
         }
       }
     }
-    s.intents.push(...getIntents(s.round, s.encounter))
+    if (!s.intents.length) s.intents.push(...getIntents(s.round, s.encounter, s.mapSeed))
   }
   s.log = s.log.slice(0, 60)
   return s

@@ -211,3 +211,5 @@
   .draw-piles button { padding: 6px; font-size: 12px; }
   .draw-piles small { font-size: 10px; }
 }
+
+.map-seed { color: #93a488; font-size: 11px; overflow-wrap: anywhere; }

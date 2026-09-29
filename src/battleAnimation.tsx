@@ -60,6 +60,8 @@ export async function animateBattleAction(action: BattleAction, signal: AbortSig
         run(number, [{ opacity: 0, transform: 'translate(-50%,0) scale(.7)' }, { opacity: 1, offset: .2 }, { opacity: 0, transform: 'translate(-50%,-45px) scale(1.15)' }], 460),
         run(target, [{ transform: 'translateX(0)', filter: 'brightness(1)' }, { transform: reduced ? 'none' : 'translateX(-9px)', filter: 'brightness(1.8) sepia(.6)', offset: .2 }, { transform: reduced ? 'none' : 'translateX(7px)', offset: .45 }, { transform: 'translateX(0)', filter: 'brightness(1)' }], 460),
       ])
+    } else if (action.kind === 'sacrifice') {
+      await run(target, [{ filter: 'brightness(1)' }, { filter: 'brightness(1.8) sepia(.7)', offset: .5 }, { filter: 'brightness(1)' }], 300)
     } else if (action.kind === 'death') {
       await run(target, [{ opacity: 1 }, { opacity: 0, transform: reduced ? 'none' : 'scale(.8)', filter: action.cause === 'sacrificed' ? 'sepia(1) saturate(3)' : 'grayscale(1)' }], 260)
     }

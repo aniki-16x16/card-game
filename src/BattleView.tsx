@@ -1,3 +1,4 @@
+import { sacrificePoints } from './game'
 import type { Battle, Card, DrawPile, Unit } from './game'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
@@ -34,7 +35,7 @@ export function BattleView(props: Props) {
   const card = battle.hand.find(c => c.id === selected)
   const choosingSacrifices = !!card && card.cost > 0 && !battle.summon?.paid
   const choosingSlot = !!card && !choosingSacrifices
-  const availableSacrifices = battle.player.flat().filter(Boolean).length
+  const availableSacrifices = sacrificePoints(battle)
   const locked = !!battle.summon?.paid
   const viewport = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ width: 900, height: 600 })
@@ -102,7 +103,7 @@ export function BattleView(props: Props) {
       <Life value={battle.enemyHp} max={20 + battle.encounter * 4} enemy />
       <div className="combat-round"><span>回合</span><strong>{String(battle.round).padStart(2, '0')}</strong><span>{settling ? '交锋结算中' : '你的部署阶段'}</span></div>
       <Life value={battle.playerHp} max={24} />
-      <div className="rail-menu"><button onClick={props.onRules}>游戏规则</button><button onClick={props.onLog}>战斗记录</button><button disabled={settling} onClick={props.onReset}>重新开始</button></div>
+      <small className="map-seed">地图种子 {battle.mapSeed}</small><div className="rail-menu"><button onClick={props.onRules}>游戏规则</button><button onClick={props.onLog}>战斗记录</button><button disabled={settling} onClick={props.onReset}>重新开始</button></div>
     </aside>
 
     <section className={`combat-field camera-field ${settling ? 'is-resolving' : ''}`} aria-label="战场" style={cameraStyle}>
@@ -132,8 +133,8 @@ export function BattleView(props: Props) {
 
     <aside className="combat-rail right-rail" aria-label="战斗操作">
       <button className="rail-forge" disabled={!props.canForge || settling} onClick={props.onForge}>⌘ 印记工坊</button>
-      <div className="combat-resource"><span>{choosingSacrifices ? '已标记祭品' : locked ? '献祭已完成' : '场上可献祭'}</span><strong>{choosingSacrifices ? battle.summon?.sacrifices.length : locked ? card?.cost : availableSacrifices}{choosingSacrifices && <small> / {card.cost}</small>}</strong></div>
-      <div className="combat-instruction" role="status">{settling ? <p className="action-label">{props.actionLabel}</p> : card ? <><strong>{card.name}</strong><p>{choosingSacrifices ? `点击己方单位标记献祭，凑够 ${card.cost} 张立即移除。${availableSacrifices < card.cost ? '场上祭品不足，可取消后部署松鼠。' : ''}` : locked ? '献祭已完成，不可取消。请选择己方空位部署。' : '免费召唤：点击己方空位部署。'}</p>{!locked && <button onClick={() => props.onSelect(null)}>{choosingSacrifices ? '取消献祭' : '取消选择'}</button>}<button onClick={() => onInspect(card)}>查看印记</button></> : <p>点击手牌开始召唤<br/>右键卡片查看印记</p>}</div>
+      <div className="combat-resource"><span>{choosingSacrifices ? '已标记部署点' : locked ? '献祭已完成' : '可提供部署点'}</span><strong>{choosingSacrifices ? sacrificePoints(battle, battle.summon?.sacrifices) : locked ? card?.cost : availableSacrifices}{choosingSacrifices && <small> / {card.cost}</small>}</strong></div>
+      <div className="combat-instruction" role="status">{settling ? <p className="action-label">{props.actionLabel}</p> : card ? <><strong>{card.name}</strong><p>{choosingSacrifices ? `点击己方单位标记献祭，凑够 ${card.cost} 点且有部署空位时立即支付。${availableSacrifices < card.cost ? '场上部署点不足，可取消后部署松鼠。' : ''}` : locked ? '献祭已完成，不可取消。请选择己方空位部署。' : '免费召唤：点击己方空位部署。'}</p>{!locked && <button onClick={() => props.onSelect(null)}>{choosingSacrifices ? '取消献祭' : '取消选择'}</button>}<button onClick={() => onInspect(card)}>查看印记</button></> : <p>点击手牌开始召唤<br/>右键卡片查看印记</p>}</div>
       <div className="draw-piles" aria-label="选择抽牌牌堆"><span>{battle.canDraw ? '本回合可抽 1 张' : '本回合抽牌已结束'}</span>
         <button disabled={settling || !!battle.summon || !battle.canDraw || !battle.deck.length || battle.status !== 'playing'} onClick={() => props.onDraw('deck')}>主牌堆 <strong>{battle.deck.length}</strong><small>抽取生物</small></button>
         <button disabled={settling || !!battle.summon || !battle.canDraw || !battle.squirrelDeck.length || battle.status !== 'playing'} onClick={() => props.onDraw('squirrelDeck')}>松鼠牌堆 <strong>{battle.squirrelDeck.length}</strong><small>0 费 · 0 攻 / 1 血</small></button>

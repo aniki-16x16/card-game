@@ -1,14 +1,15 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { initialDeck, makeCard, makeSquirrel, selectSummon, markSacrifice, drawCard, startBattle, deploy, planRound, resolveRound, transfer, load } from '../src/game.ts'
+import { getIntents, getRewards, sacrificePoints, initialDeck, makeCard, makeSquirrel, selectSummon, markSacrifice, drawCard, startBattle, deploy, planRound, resolveRound, transfer, load } from '../src/game.ts'
 
 const unit = (index, id, patch = {}) => { const card = makeCard(index, id); return { ...card, hp: card.health, ...patch } }
-const quietBattle = () => ({ ...startBattle(initialDeck()), intents: [] })
+// Combat fixtures use a known hand independently of seeded shuffle order.
+const quietBattle = () => ({ ...startBattle(initialDeck(), 1, 123), hand: [...initialDeck().slice(0, 5), makeSquirrel('squirrel-0')], deck: initialDeck().slice(5), intents: [] })
 
 test('free squirrel deployment removes the hand card and rejects occupied or invalid slots', () => {
   const start = selectSummon(startBattle(initialDeck()), 'squirrel-0')
   const next = deploy(start, 'squirrel-0', 0, 0)
-  assert.equal(next.hand.length, 3); assert.equal(next.player[0][0].hp, 1)
+  assert.equal(next.hand.length, 5); assert.equal(next.player[0][0].hp, 1)
   assert.equal(start.player[0][0], null); assert.equal(next.summon, null)
   assert.equal(deploy(next, 'starter-0', 0, 1), next, 'unpaid cards cannot deploy')
   const selected = selectSummon({ ...next, hand: [...next.hand, makeSquirrel('extra')] }, 'extra')
@@ -118,7 +119,7 @@ test('repeated transfers consume donors and preserve native sigils, stats and ca
   cards = transfer(cards, 'starter-3', 'starter-0', 'support').deck
   const result = cards.find(c => c.id === 'starter-0')
   assert.deepEqual(result.added, ['armor', 'ranged', 'support']); assert.equal(load(result), 3)
-  assert.equal(result.attack, 3); assert.equal(result.capacity, 3); assert.equal(cards.length, 9)
+  assert.equal(result.attack, 3); assert.equal(result.capacity, 3); assert.equal(cards.length, 11)
   assert.ok(transfer(cards, 'starter-5', 'starter-0', 'rebirth').error)
   const replacement = transfer(cards, 'starter-5', 'starter-0', 'rebirth', ['armor', 'ranged', 'support'])
   assert.equal(replacement.error, undefined); assert.deepEqual(replacement.deck.find(c => c.id === 'starter-0').added, ['rebirth'])
@@ -187,7 +188,7 @@ test('all player attacks finish before enemy deployment and counterattack', () =
   s.intents = [{ card: makeCard(5, 'right-enemy'), row: 0, col: 4 }, { card: makeCard(5, 'left-enemy'), row: 0, col: 0 }]
   const plan = planRound(s)
   assert.deepEqual(plan.frames.filter(f => ['attack', 'deploy'].includes(f.action.kind)).map(f => [f.action.kind, f.action.target]), [
-    ['attack', 'enemy-0-0'], ['attack', 'enemy-0-4'], ['deploy', 'enemy-0-0'], ['deploy', 'enemy-0-4'], ['attack', 'player-0-0'], ['attack', 'player-0-4'],
+    ['attack', 'enemy-0-0'], ['attack', 'enemy-0-4'], ['deploy', 'enemy-0-0'], ['attack', 'player-0-0'],
   ])
   assert.equal(plan.state.enemyHp, 18)
   assert.equal(plan.frames[0].state.intents.length, 2)
@@ -301,7 +302,7 @@ test('sacrifice triggers death/rebirth but not thorns or killed causes', () => {
 
 test('squirrel pile is separate and both piles share one draw per round', () => {
   const s = quietBattle(), original = structuredClone(s)
-  assert.equal(s.hand.length, 4); assert.equal(s.squirrelDeck.length, 9)
+  assert.equal(s.hand.length, 6); assert.equal(s.squirrelDeck.length, 9)
   assert.deepEqual(s.hand.at(-1), makeSquirrel('squirrel-0'))
   const squirrelDraw = drawCard(s, 'squirrelDeck')
   assert.equal(squirrelDraw.hand.at(-1).species, 'squirrel')
@@ -350,4 +351,114 @@ test('zero-attack squirrels do not attack or trigger thorns; support can enable 
   const boosted = planRound(s)
   assert.equal(boosted.frames.filter(f => f.action.kind === 'attack').length, 1)
   assert.equal(boosted.state.player[0][0].id, 'support')
+})
+
+test('opening hand contains five shuffled main cards and one squirrel', () => {
+  const cards = initialDeck(), before = structuredClone(cards)
+  const s = startBattle(cards, 1, 20260929)
+  assert.equal(s.hand.length, 6)
+  assert.equal(s.hand.filter(c => c.species === 'squirrel').length, 1)
+  assert.equal(s.deck.length, cards.length - 5)
+  assert.deepEqual([...s.hand.filter(c => c.species !== 'squirrel'), ...s.deck].map(c => c.id).sort(), cards.map(c => c.id).sort())
+  assert.deepEqual(cards, before)
+  assert.deepEqual(startBattle(cards, 1, 20260929), s)
+  assert.notDeepEqual(startBattle(cards, 1, 20260930).hand, s.hand)
+  assert.equal(s.mapSeed, 20260929)
+})
+
+test('goat pays three points, can overpay, and does not bank excess points', () => {
+  for (const index of [0, 3, 6]) {
+    const s = quietBattle(), card = makeCard(index, 'summoned')
+    s.hand.push(card); s.player[0][0] = unit(8, 'goat')
+    assert.equal(sacrificePoints(s), 3)
+    const paid = markSacrifice(selectSummon(s, card.id), 'goat')
+    assert.equal(paid.state.summon.paid, true)
+    assert.equal(paid.state.player[0][0], null)
+    const placed = deploy(paid.state, card.id, 0, 0)
+    const next = selectSummon(placed, 'starter-0')
+    assert.equal(next.summon.paid, false)
+    assert.equal(paid.frames[0].action.cause, 'sacrificed')
+  }
+})
+
+test('undying sacrifice preserves wounds and sigils without triggering rebirth', () => {
+  const s = quietBattle(); s.player[0][0] = unit(9, 'experiment', { health: 3, hp: 2, added: ['rebirth'] })
+  const original = structuredClone(s.player[0][0])
+  const paid = markSacrifice(selectSummon(s, 'starter-1'), 'experiment')
+  assert.equal(paid.state.summon.paid, true)
+  assert.deepEqual(paid.state.player[0][0], original)
+  assert.equal(paid.state.hand.some(c => c.id === 'experiment'), false)
+  assert.deepEqual(paid.frames.map(f => f.action.kind), ['sacrifice'])
+  assert.equal(deploy(paid.state, 'starter-1', 0, 0), paid.state)
+  const placed = deploy(paid.state, 'starter-1', 0, 1)
+  const second = markSacrifice(selectSummon(placed, 'starter-4'), 'experiment')
+  assert.equal(second.state.summon.paid, true)
+  assert.deepEqual(second.state.player[0][0], original)
+})
+
+test('undying unit counts only once per summon and still dies when killed', () => {
+  const s = quietBattle(); s.player[0][0] = unit(9, 'experiment')
+  const marked = markSacrifice(selectSummon(s, 'starter-0'), 'experiment').state
+  assert.equal(sacrificePoints(marked, marked.summon.sacrifices), 1)
+  const toggled = markSacrifice(marked, 'experiment').state
+  assert.equal(toggled.summon.paid, false)
+  assert.equal(sacrificePoints(toggled, toggled.summon.sacrifices), 0)
+  s.enemy[0][0] = unit(0, 'wolf')
+  const plan = planRound(s)
+  assert.equal(plan.state.player[0][0], null)
+  assert.equal(plan.frames.find(f => f.action.kind === 'death').action.cause, 'killed')
+})
+
+test('combined sacrifice sigils work on any species, including transferred sigils', () => {
+  let cards = transfer(initialDeck(), 'starter-12', 'starter-0', 'triple').deck
+  assert.ok(cards.find(c => c.id === 'starter-0').added.includes('triple'))
+  cards = transfer(cards, 'starter-13', 'starter-3', 'undying').deck
+  assert.ok(cards.find(c => c.id === 'starter-3').added.includes('undying'))
+  const s = quietBattle(); s.hand.push(makeCard(6, 'bear'))
+  s.player[0][0] = unit(9, 'combined', { added: ['triple'] })
+  const paid = markSacrifice(selectSummon(s, 'bear'), 'combined')
+  assert.equal(paid.state.summon.paid, true)
+  assert.equal(paid.state.player[0][0].id, 'combined')
+  assert.equal(paid.frames[0].action.kind, 'sacrifice')
+})
+
+test('full board with surviving sacrifices stays cancellable until a landing slot can be freed', () => {
+  const s = quietBattle()
+  for (let row = 0; row < 2; row++) for (let col = 0; col < 5; col++) s.player[row][col] = unit(9, `${row}-${col}`)
+  s.player[1][4] = unit(5, 'mortal')
+  const marked = markSacrifice(selectSummon(s, 'starter-1'), '0-0')
+  assert.equal(marked.state.summon.paid, false)
+  assert.equal(marked.frames.length, 0)
+  assert.equal(selectSummon(marked.state, null).summon, null)
+  const paid = markSacrifice(marked.state, 'mortal')
+  assert.equal(paid.state.summon.paid, true)
+  assert.equal(paid.state.player[1][4], null)
+  assert.equal(paid.state.player[0][0].id, '0-0')
+  assert.equal(deploy(paid.state, 'starter-1', 1, 4).summon, null)
+})
+
+test('enemy generation and actual deployment are capped at one, including rebirth backlog', () => {
+  for (const encounter of [1, 2, 3]) for (let round = 1; round <= 13; round++) assert.ok(getIntents(round, encounter, 123).length <= 1)
+  const s = quietBattle()
+  s.intents = [{ card: makeCard(5, 'scheduled'), row: 0, col: 2 }]
+  s.enemy[0][0] = unit(4, 'reborn'); s.player[0][0] = unit(0, 'wolf')
+  const plan = planRound(s)
+  assert.equal(plan.frames.filter(f => f.action.kind === 'deploy').length, 1)
+  assert.equal(plan.state.intents.length, 1)
+  assert.equal(plan.state.intents[0].card.id, 'reborn')
+  const second = planRound(plan.state)
+  assert.equal(second.frames.filter(f => f.action.kind === 'deploy').length, 1)
+})
+
+test('map seed controls independent enemy lanes and stable unique rewards', () => {
+  const s = startBattle(initialDeck(), 1, 123)
+  assert.deepEqual(planRound(s), planRound(s))
+  assert.equal(planRound(s).state.mapSeed, 123)
+  const rewards = getRewards(123, 1)
+  assert.equal(new Set(rewards.map(c => c.species)).size, 3)
+  getIntents(6, 2, 123); startBattle(initialDeck(), 2, 123)
+  assert.deepEqual(getRewards(123, 1), rewards)
+  const seen = new Set(Array.from({ length: 30 }, (_, seed) => getRewards(seed, 1)).flat().map(c => c.species))
+  assert.ok(seen.has('goat')); assert.ok(seen.has('experiment'))
+  assert.notDeepEqual(Array.from({length:12}, (_, i) => getIntents(i+1, 1, 123)), Array.from({length:12}, (_, i) => getIntents(i+1, 1, 456)))
 })
