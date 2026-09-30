@@ -9,7 +9,7 @@ export type Intent = { card: Card; row: number; col: number }
 export type Summon = { cardId: string; sacrifices: string[]; paid: boolean }
 export type DrawPile = 'deck' | 'squirrelDeck'
 export type DeathCause = 'killed' | 'sacrificed' | 'expired'
-export type Battle = { mapSeed: number; nextId: number; round: number; playerHp: number; enemyHp: number; player: Board; enemy: Board; hand: Card[]; deck: Card[]; squirrelDeck: Card[]; canDraw: boolean; summon: Summon | null; intents: Intent[]; log: string[]; status: 'playing' | 'won' | 'lost'; fatigue: number; encounter: number }
+export type Battle = { mapSeed: number; nextId: number; round: number; balance: number; difficulty: 'normal' | 'elite' | 'boss'; player: Board; enemy: Board; hand: Card[]; deck: Card[]; squirrelDeck: Card[]; canDraw: boolean; summon: Summon | null; intents: Intent[]; log: string[]; status: 'playing' | 'won' | 'lost'; fatigue: number; encounter: number }
 export function initialDeck(): Card[] { return [0, 3, 2, 1, 5, 4, 7, 6, 10, 3, 11, 29, 8, 9].map((t, i) => makeCard(t, `starter-${i}`)) }
 export const emptyBoard = (): Board => [Array(5).fill(null), Array(5).fill(null)]
 export function transfer(deck: Card[], donorId: string, targetId: string, sigil: Sigil, remove: Sigil[] = []): { deck: Card[]; error?: string } {
@@ -23,19 +23,21 @@ export function transfer(deck: Card[], donorId: string, targetId: string, sigil:
   if (load(next) > target.capacity) return fail('容量不足，请勾选要覆盖的外来印记。')
   return { deck: deck.filter(c => c.id !== donorId).map(c => c.id === targetId ? next : c) }
 }
-export function getIntents(round: number, encounter: number, mapSeed = MAP_SEED): Intent[] {
+export function getIntents(round: number, encounter: number, mapSeed = MAP_SEED, difficulty: Battle['difficulty'] = 'normal'): Intent[] {
   if (round > 12) return []
   const rng = createRandom(deriveSeed(mapSeed, `enemy:${encounter}:${round}`))
-  const ceiling = round <= 3 ? 1 : round < 8 ? 2 : 3
+  const ceiling = difficulty === 'boss' ? 3 : difficulty === 'elite' ? 2 : round <= 3 ? 1 : round < 8 ? 2 : 3
   const pool = templates.map((card, index) => ({ card, index })).filter(({ card }) => card.attack > 0 && card.cost <= ceiling && card.species !== 'squirrel')
   const card = makeCard(pool[rng.int(pool.length)].index, `enemy-${round}-a`), col = rng.int(5)
+  if (difficulty === 'elite') card.health += 1
+  if (difficulty === 'boss') { card.health += 1; card.native = [...new Set([...card.native, round % 2 ? 'armor' as const : 'flying' as const])] }
   const intents: Intent[] = [{ card, col, row: sigils(card).includes('ranged') || sigils(card).includes('support') ? 1 : 0 }]
   return intents
 }
-export function startBattle(cards: Card[], encounter = 1, mapSeed = MAP_SEED): Battle {
+export function startBattle(cards: Card[], encounter = 1, mapSeed = MAP_SEED, difficulty: Battle['difficulty'] = 'normal'): Battle {
   const shuffled = createRandom(deriveSeed(mapSeed, `deck:${encounter}`)).shuffle(cards)
   const squirrels = Array.from({ length: 10 }, (_, i) => makeSquirrel(`squirrel-${i}`))
-  return { mapSeed, nextId: 1, round: 1, playerHp: 24, enemyHp: 20 + encounter * 4, player: emptyBoard(), enemy: emptyBoard(), hand: [...structuredClone(shuffled.slice(0, 5)), squirrels[0]], deck: structuredClone(shuffled.slice(5)), squirrelDeck: squirrels.slice(1), canDraw: true, summon: null, intents: getIntents(1, encounter, mapSeed), log: ['选择牌堆抽牌。0 费生物可直接部署；其他生物需要献祭己方单位。'], status: 'playing', fatigue: 0, encounter }
+  return { mapSeed, nextId: 1, round: 1, balance: 0, difficulty, player: emptyBoard(), enemy: emptyBoard(), hand: [...structuredClone(shuffled.slice(0, 5)), squirrels[0]], deck: structuredClone(shuffled.slice(5)), squirrelDeck: squirrels.slice(1), canDraw: true, summon: null, intents: getIntents(1, encounter, mapSeed, difficulty), log: ['选择牌堆抽牌。0 费生物可直接部署；其他生物需要献祭己方单位。'], status: 'playing', fatigue: 0, encounter }
 }
 export function getRewards(mapSeed: number, encounter: number): Card[] {
   return createRandom(deriveSeed(mapSeed, `rewards:${encounter}`)).shuffle(templates.map((card, i) => card.species === 'squirrel' ? -1 : i).filter(i => i >= 0)).slice(0, 3).map((index, i) => makeCard(index, `reward-${encounter}-${i}`))
@@ -122,13 +124,14 @@ export function resolveRound(state: Battle, record?: Recorder): Battle {
   if (engine.checkEnd()) return s
   s.round++; s.canDraw = true
   if (!s.deck.length && !s.squirrelDeck.length) {
-    s.canDraw = false; s.fatigue++; s.playerHp -= s.fatigue
-    s.log.unshift(`两堆牌库耗尽：疲劳造成 ${s.fatigue} 点生命伤害。`)
+    s.canDraw = false; s.fatigue++; s.balance -= s.fatigue
+    engine.checkEnd()
+    s.log.unshift(`两堆牌库耗尽：疲劳造成 ${s.fatigue} 点天平伤害。`)
     engine.emit({ kind: 'hit', target: 'life-player', amount: s.fatigue, label: `疲劳伤害 −${s.fatigue}` })
   }
   if (!engine.checkEnd()) {
     engine.startRound()
-    if (!s.intents.length) s.intents.push(...getIntents(s.round, s.encounter, s.mapSeed))
+    if (!s.intents.length) s.intents.push(...getIntents(s.round, s.encounter, s.mapSeed, s.difficulty))
   }
   s.log = s.log.slice(0, 60)
   return s

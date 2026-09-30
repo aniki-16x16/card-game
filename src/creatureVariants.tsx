@@ -3,6 +3,7 @@ import type { Species } from './game'
 
 // Stable, authored palettes: artwork must never depend on the battle seed or card ID.
 export const palettes: Record<Species, [string, string]> = {
+  viper: ['#b3a1c5', '#ebc194'],
   wolf:['#d5dfc3','#718f89'], deer:['#dabd83','#f5e0aa'], owl:['#b7abd7','#efe0bb'], beetle:['#9cb8b0','#d3e1d1'], moth:['#c9b8db','#9278a8'], fox:['#e3a46f','#f7d7a2'], bear:['#ba9676','#e6c49b'], heron:['#c8dddd','#8eafcc'], goat:['#8e91ad','#d9c8e2'], experiment:['#b9cea2','#daa5bc'],
   mouse:['#c4b599','#eed8b5'], rabbit:['#eed7bd','#c69b9a'], coyote:['#d4b16e','#f5d6a0'], greywolf:['#a9bdcf','#e6eff0'], hyena:['#c6a66d','#735e4c'], boar:['#b99b87','#f3dfb3'], hedgehog:['#c5af83','#ede0b6'], bat:['#a99bc5','#d7b6d0'], fawn:['#dcac83','#fff0ce'],
   chick:['#f0d585','#ffeabc'], sparrow:['#bd9c7c','#ead6ae'], crow:['#869bab','#bfd2de'], vulture:['#bdac98','#e5b1a1'], hen:['#e3c7a1','#d88779'], falcon:['#b1c4ca','#677e8e'], albatross:['#ecdfc1','#8ebbbb'], eagle:['#d9b55f','#f9dfa1'], pigeon:['#a9b7d7','#a0d6b9'], quail:['#b9a780','#f1d7a3'],
@@ -12,6 +13,7 @@ export const palettes: Record<Species, [string, string]> = {
 }
 
 export const variants: Partial<Record<Species, ReactNode>> = {
+  viper: <path className="outline-mark" d="m45 42 11 4-3 12 18 3-2 12 16 4-7 13"/>,
   coyote:<><path d="M29 41 23 8 48 36M74 35 99 7 89 52"/><path className="marking" d="m48 67 12 5 12-5-12 22Z"/></>,
   greywolf:<><path className="marking" d="M37 39 57 55 83 37 72 60 59 69 46 60Z"/><path className="outline-mark" d="m34 70-8 11m57-14 9 12"/></>,
   hyena:<><path d="m41 38 8-24 8 8 8-14 7 23"/><circle cx="31" cy="34" r="12"/><circle cx="88" cy="31" r="12"/><g className="marking"><circle cx="44" cy="68" r="4"/><circle cx="75" cy="69" r="5"/><circle cx="63" cy="88" r="3"/></g></>,

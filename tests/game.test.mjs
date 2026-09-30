@@ -20,16 +20,16 @@ test('free squirrel deployment removes the hand card and rejects occupied or inv
 test('front blocks life damage and spills excess damage into rear', () => {
   const s = quietBattle(); s.player[0][0] = unit(0, 'p'); s.enemy[0][0] = unit(4, 'e', { native: [] }); s.enemy[1][0] = unit(1, 'rear')
   const next = resolveRound(s)
-  assert.equal(next.enemy[0][0].id, 'rear'); assert.equal(next.enemy[0][0].hp, 2); assert.equal(next.enemy[1][0], null); assert.equal(next.enemyHp, 24)
+  assert.equal(next.enemy[0][0].id, 'rear'); assert.equal(next.enemy[0][0].hp, 2); assert.equal(next.enemy[1][0], null); assert.equal(next.balance, 0)
   assert.equal(next.player[0][0].hp, 3, 'rear must not advance and counterattack during the current combat')
 })
 test('rear melee cannot attack; ranged rear can damage an empty lane', () => {
   const s = quietBattle(); s.player[1][0] = unit(0, 'melee'); s.player[1][1] = unit(2, 'ranged')
-  assert.equal(resolveRound(s).enemyHp, 22)
+  assert.equal(resolveRound(s).balance, 2)
 })
 test('support adds attack only to the same-column front', () => {
   const s = quietBattle(); s.player[0][0] = unit(0, 'wolf'); s.player[1][0] = unit(1, 'deer')
-  assert.equal(resolveRound(s).enemyHp, 20)
+  assert.equal(resolveRound(s).balance, 4)
 })
 test('armor reduces damage and thorns can kill the attacker after a lethal hit', () => {
   const s = quietBattle(); s.player[0][0] = unit(0, 'p', { hp: 1 }); s.enemy[0][0] = unit(3, 'e', { hp: 2, added: ['thorns'] })
@@ -37,9 +37,9 @@ test('armor reduces damage and thorns can kill the attacker after a lethal hit',
 })
 test('rear fox advances only at the next round start and cannot attack early', () => {
   const s = quietBattle(); s.player[1][0] = unit(5, 'fox')
-  const next = resolveRound(s); assert.equal(next.player[0][0].id, 'fox'); assert.equal(next.player[1][0], null); assert.equal(next.enemyHp, 24)
+  const next = resolveRound(s); assert.equal(next.player[0][0].id, 'fox'); assert.equal(next.player[1][0], null); assert.equal(next.balance, 0)
   next.intents = []
-  assert.equal(resolveRound(next).enemyHp, 22)
+  assert.equal(resolveRound(next).balance, 2)
 })
 
 test('all rear species on both sides advance at round start, preserving damage and sigils', () => {
@@ -73,13 +73,13 @@ test('deploying into an empty rear lane waits until the next round to advance', 
   const s = deploy(selectSummon(quietBattle(), 'squirrel-0'), 'squirrel-0', 1, 4)
   assert.equal(s.player[0][4], null)
   const next = resolveRound(s)
-  assert.equal(next.enemyHp, 24)
+  assert.equal(next.balance, 0)
   assert.equal(next.player[0][4].id, 'squirrel-0')
   assert.equal(next.player[1][4], null)
 })
 
 test('fatigue defeat does not start a new deployment phase or advance rear units', () => {
-  const s = quietBattle(); s.deck = []; s.squirrelDeck = []; s.playerHp = 1; s.player[1][0] = unit(0, 'rear')
+  const s = quietBattle(); s.deck = []; s.squirrelDeck = []; s.balance = -9; s.player[1][0] = unit(0, 'rear')
   const next = resolveRound(s)
   assert.equal(next.status, 'lost')
   assert.equal(next.player[0][0], null)
@@ -87,9 +87,9 @@ test('fatigue defeat does not start a new deployment phase or advance rear units
 })
 test('split attacks neighboring lanes, and edge split only attacks one lane', () => {
   const s = quietBattle(); s.player[0][2] = unit(7, 'heron')
-  assert.equal(resolveRound(s).enemyHp, 20)
+  assert.equal(resolveRound(s).balance, 4)
   s.player[0][2] = null; s.player[0][0] = unit(7, 'edge')
-  assert.equal(resolveRound(s).enemyHp, 22)
+  assert.equal(resolveRound(s).balance, 2)
 })
 test('rebirth returns a dead card, and paid redeployment restores health', () => {
   const s = quietBattle(); s.player[0][0] = unit(4, 'moth'); s.enemy[0][0] = unit(0, 'wolf')
@@ -100,15 +100,15 @@ test('rebirth returns a dead card, and paid redeployment restores health', () =>
   const redeployed = deploy(paid, 'moth', 0, 1)
   assert.equal(redeployed.player[0][1].hp, 1); assert.equal(redeployed.summon, null)
 })
-test('lethal player attack stops enemy counterattack; depleted life is clamped to zero', () => {
-  const s = quietBattle(); s.enemyHp = 1; s.playerHp = 1; s.player[0][0] = unit(0, 'p'); s.enemy[0][1] = unit(0, 'e')
-  const next = resolveRound(s); assert.equal(next.status, 'won'); assert.equal(next.enemyHp, 0); assert.equal(next.playerHp, 1)
-  const loss = quietBattle(); loss.playerHp = 1; loss.enemy[0][0] = unit(0, 'e')
+test('lethal player attack stops enemy counterattack; scale is clamped at ten', () => {
+  const s = quietBattle(); s.balance = 9; s.player[0][0] = unit(0, 'p'); s.enemy[0][1] = unit(0, 'e')
+  const next = resolveRound(s); assert.equal(next.status, 'won'); assert.equal(next.balance, 10)
+  const loss = quietBattle(); loss.balance = -9; loss.enemy[0][0] = unit(0, 'e')
   assert.equal(resolveRound(loss).status, 'lost')
 })
 test('deck exhaustion causes increasing fatigue and can end the battle', () => {
-  const s = quietBattle(); s.deck = []; s.squirrelDeck = []; s.playerHp = 3
-  const next = resolveRound(s); assert.equal(next.playerHp, 2); assert.equal(next.fatigue, 1)
+  const s = quietBattle(); s.deck = []; s.squirrelDeck = []; s.balance = -7
+  const next = resolveRound(s); assert.equal(next.balance, -8); assert.equal(next.fatigue, 1)
   next.intents = []
   assert.equal(resolveRound(next).status, 'lost')
 })
@@ -148,8 +148,8 @@ test('animation timeline orders columns left to right and rear before front, wit
   const plan = planRound(s)
   assert.deepEqual(plan.frames.filter(f => f.action.kind === 'attack').map(f => f.action.source), ['player-1-0', 'player-0-0', 'player-0-1'])
   assert.deepEqual(plan.frames.map(f => f.action.kind), ['attack', 'hit', 'attack', 'hit', 'attack', 'hit'])
-  assert.equal(plan.frames[0].state.enemyHp, 24)
-  assert.equal(plan.frames[1].state.enemyHp, 22)
+  assert.equal(plan.frames[0].state.balance, 0)
+  assert.equal(plan.frames[1].state.balance, 2)
   assert.deepEqual(plan.state, resolveRound(s))
   assert.deepEqual(s, original)
 })
@@ -173,7 +173,7 @@ test('hit, retaliation, death, and next-round promotion are separate snapshots',
 test('enemy entry is left to right and a lethal hit stops the animation plan', () => {
   const s = quietBattle()
   s.intents = [{card: makeCard(5, 'right'), col: 4, row: 0}, {card: makeCard(5, 'left'), col: 1, row: 0}]
-  s.player[0][0] = unit(0, 'lethal'); s.enemyHp = 1
+  s.player[0][0] = unit(0, 'lethal'); s.balance = 9
   const plan = planRound(s)
   assert.deepEqual(plan.frames.map(f => f.action.kind), ['attack', 'hit'])
   assert.equal(plan.state.enemy[0][1], null)
@@ -190,7 +190,7 @@ test('all player attacks finish before enemy deployment and counterattack', () =
   assert.deepEqual(plan.frames.filter(f => ['attack', 'deploy'].includes(f.action.kind)).map(f => [f.action.kind, f.action.target]), [
     ['attack', 'enemy-0-0'], ['attack', 'enemy-0-4'], ['deploy', 'enemy-0-0'], ['attack', 'player-0-0'],
   ])
-  assert.equal(plan.state.enemyHp, 18)
+  assert.equal(plan.state.balance, 6)
   assert.equal(plan.frames[0].state.intents.length, 2)
 })
 
@@ -200,7 +200,7 @@ test('empty front damages life and leaves rear untouched for either side', () =>
     s[side][0][2] = unit(0, 'attacker')
     s[other][1][2] = unit(1, 'rear', { native: [] })
     const plan = planRound(s)
-    assert.equal(plan.state[other + 'Hp'], 21)
+    assert.equal(plan.state.balance, side === 'player' ? 3 : -3)
     assert.equal(plan.state[other][0][2].hp, 4)
     assert.equal(plan.frames.find(f => f.action.kind === 'attack').action.target, other + '-0-2')
     assert.equal(plan.frames.find(f => f.action.kind === 'hit').action.target, 'life-' + other)
@@ -214,7 +214,7 @@ test('overflow never damages life, whether rear is absent or also killed', () =>
     s.enemy[0][0] = unit(5, 'front', { hp: 1 })
     if (rearPresent) s.enemy[1][0] = unit(5, 'rear')
     const next = resolveRound(s)
-    assert.equal(next.enemyHp, 24)
+    assert.equal(next.balance, 0)
     assert.equal(next.enemy[0][0], null)
     assert.equal(next.enemy[1][0], null)
   }
@@ -228,7 +228,7 @@ test('overflow applies armor on each defender and rear thorns still retaliate', 
   const next = resolveRound(s)
   assert.equal(next.enemy[0][0].hp, 2)
   assert.equal(next.player[0][0], null)
-  assert.equal(next.enemyHp, 24)
+  assert.equal(next.balance, 0)
 })
 
 test('each attack checks front occupancy anew, including ranged then front attacks', () => {
@@ -238,7 +238,7 @@ test('each attack checks front occupancy anew, including ranged then front attac
   s.enemy[0][0] = unit(5, 'defender', { hp: 1 })
   s.enemy[1][0] = unit(1, 'rear', { native: [] })
   const next = resolveRound(s)
-  assert.equal(next.enemyHp, 21)
+  assert.equal(next.balance, 3)
   assert.equal(next.enemy[0][0].hp, 3)
 })
 
@@ -293,7 +293,7 @@ test('sacrifice triggers death/rebirth but not thorns or killed causes', () => {
   const paid = markSacrifice(selectSummon(s, 'starter-1'), 'moth')
   assert.equal(paid.state.player[0][0], null)
   assert.equal(paid.state.player[1][0].id, 'rear', 'no immediate promotion')
-  assert.equal(paid.state.playerHp, 24)
+  assert.equal(paid.state.balance, 0)
   assert.equal(paid.state.hand.find(c => c.id === 'moth').hp, undefined)
   assert.deepEqual(paid.frames.map(f => [f.action.kind, f.action.cause]), [['death', 'sacrificed']])
   const combat = quietBattle(); combat.player[0][0] = unit(0, 'wolf'); combat.enemy[0][0] = unit(4, 'enemy-moth')
@@ -323,11 +323,11 @@ test('squirrel pile is separate and both piles share one draw per round', () => 
 test('empty pile cannot consume a draw; fatigue requires both piles empty', () => {
   const s = quietBattle(); s.deck = []
   assert.equal(drawCard(s, 'deck'), s)
-  assert.equal(resolveRound(s).playerHp, 24)
+  assert.equal(resolveRound(s).balance, 0)
   assert.equal(drawCard(s, 'squirrelDeck').canDraw, false)
   s.squirrelDeck = []
   const next = resolveRound(s)
-  assert.equal(next.playerHp, 23); assert.equal(next.canDraw, false)
+  assert.equal(next.balance, -1); assert.equal(next.canDraw, false)
 })
 
 test('free selection can cancel, cannot sacrifice, and unfinished marks clear on ending turn', () => {

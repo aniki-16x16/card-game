@@ -18,8 +18,8 @@ export class BattleEngine {
     this.emit({ kind: 'effect', target: slot(side, row, col), label })
   }
   checkEnd(): boolean {
-    if (this.s.enemyHp <= 0) { this.s.enemyHp = 0; this.s.status = 'won' }
-    else if (this.s.playerHp <= 0) { this.s.playerHp = 0; this.s.status = 'lost' }
+    if (this.s.balance >= 10) { this.s.balance = 10; this.s.status = 'won' }
+    else if (this.s.balance <= -10) { this.s.balance = -10; this.s.status = 'lost' }
     return this.s.status !== 'playing'
   }
   find(side: Side, id: string): [number, number] | undefined {
@@ -148,8 +148,9 @@ export class BattleEngine {
     this.emit({ kind: 'attack', source: slot(side, row, col), target, route: air ? 'air' : 'ground', label: `${attacker.name} ${air ? '飞行攻击' : '攻击'}第 ${targetCol + 1} 列` })
     const kills: Unit[] = []
     if (!defender) {
-      if (side === 'player') this.s.enemyHp -= power; else this.s.playerHp -= power
-      this.s.log.unshift(`${attacker.name} 突破第 ${targetCol + 1} 列，${enemy === 'player' ? '我方' : '敌方'}生命 −${power}。`)
+      this.s.balance += side === 'player' ? power : -power
+      this.checkEnd()
+      this.s.log.unshift(`${attacker.name} 突破第 ${targetCol + 1} 列，${enemy === 'player' ? '我方' : '敌方'}天平承受 ${power} 点。`)
       this.emit({ kind: 'hit', target: `life-${enemy}`, amount: power, label: `生命 −${power}` })
     } else {
       let remaining = power
