@@ -1,56 +1,36 @@
+import { deployFlight } from './deployFlight'
+import { sacrificeSchedule } from './sacrificeSchedule'
+import { motionScope } from './motion'
+import { attackFlight } from './attackFlight'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { CardFace } from '../../components/cards/Cards'
-import type { BattleAction, Battle } from '../../domain/game'
+import type { BattleAction, Battle, BattleFrame } from '../../domain/game'
 
 const find = (id?: string) => id ? document.querySelector<HTMLElement>(`[data-motion="${CSS.escape(id)}"]`) : null
 
-export async function animateBattleAction(action: BattleAction, signal: AbortSignal, state: Battle) {
+export async function animateBattleAction(action: BattleAction, signal: AbortSignal, state: Battle, retained?: (() => void)[]) {
   const source = find(action.source), target = find(action.target)
   if (!target || signal.aborted) return
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
   const floating: HTMLElement[] = []
-  const animations: Animation[] = []
-  const run = (element: HTMLElement, frames: Keyframe[], duration: number) => {
-    const animation = element.animate(frames, { duration: reduced ? 100 : duration, easing: 'cubic-bezier(.22,.8,.24,1)', fill: 'forwards' })
-    animations.push(animation)
-    return animation.finished.catch(() => {})
-  }
-  const cancel = () => animations.forEach(a => a.cancel())
-  signal.addEventListener('abort', cancel, { once: true })
-  let hidden: HTMLElement | null = null
+  const motion = motionScope(signal)
+  const run = (element: HTMLElement, frames: { offset?: number; transform?: string; opacity?: number; filter?: string }[], duration: number) => motion.tween(element, {
+    duration: reduced ? 100 : duration,
+    ease: 'out(3)',
+    keyframes: Object.fromEntries(frames.map((frame, index) => {
+      const { offset, ...values } = frame
+      return [String((offset ?? index / (frames.length - 1)) * 100) + '%', values]
+    })),
+  })
   try {
     const end = target.getBoundingClientRect()
     if (action.kind === 'deploy' || action.kind === 'advance') {
-      const start = source?.getBoundingClientRect() ?? end
-      const overlay = document.createElement('div')
-      overlay.className = 'card-flight camera-world'
-      overlay.setAttribute('aria-hidden', 'true')
       const [side, row, col] = action.target.split('-')
       const card = state[side as 'player' | 'enemy'][Number(row)][Number(col)]
-      if (!card) return
-      overlay.innerHTML = `<div class="combat-slot">${renderToStaticMarkup(<CardFace card={card} />)}</div>`
-      const width = action.kind === 'advance' || action.source?.startsWith('hand-') ? start.width : end.width * .65
-      Object.assign(overlay.style, { left: `${start.left}px`, top: `${start.top}px`, width: `${end.width}px`, '--lane-width': `${end.width}px` })
-      document.body.append(overlay); floating.push(overlay)
-      if (source && !action.source?.startsWith('intent-')) { hidden = source; hidden.style.visibility = 'hidden' }
-      const dx = end.left - start.left, dy = end.top - start.top
-      await run(overlay, reduced ? [{ opacity: .4 }, { opacity: 1 }] : [
-        { transform: `translate(0,0) scale(${width / end.width}) rotate(-5deg)`, opacity: .8 },
-        { transform: `translate(${dx}px,${dy - 14}px) scale(1.04)`, opacity: 1, offset: .78 },
-        { transform: `translate(${dx}px,${dy}px) scale(1)`, opacity: 1 },
-      ], action.kind === 'advance' ? 420 : 480)
+      if (card) await deployFlight(source, target, renderToStaticMarkup(<CardFace card={card}/>), action.kind === 'advance', signal)
     } else if (action.kind === 'attack' && source) {
-      const start = source.getBoundingClientRect()
-      const dx = end.left + end.width / 2 - start.left - start.width / 2
-      const dy = end.top + end.height / 2 - start.top - start.height / 2
-      const distance = Math.hypot(dx, dy) || 1
-      const flight = action.route === 'air' ? ' scale(1.12)' : ''
-      await run(source, reduced ? [{ filter: 'brightness(1.5)' }, { filter: 'brightness(1)' }] : [
-        { transform: 'translate(0,0)' },
-        { transform: `translate(${-dx / distance * 10}px,${-dy / distance * 10}px)`, offset: .25 },
-        { transform: `translate(${dx / distance * 45}px,${dy / distance * 45}px)${flight}`, filter: 'brightness(1.4)', offset: .65 },
-        { transform: 'translate(0,0)', filter: 'brightness(1)' },
-      ], 360)
+      if (reduced) await run(source, [{ filter: 'brightness(1.5)' }, { filter: 'brightness(1)' }], 100)
+      else await attackFlight(source, target, action.route === 'air', signal)
     } else if (action.kind === 'hit') {
       const number = document.createElement('div')
       number.className = 'damage-number'
@@ -64,12 +44,43 @@ export async function animateBattleAction(action: BattleAction, signal: AbortSig
     } else if (action.kind === 'sacrifice' || action.kind === 'effect') {
       await run(target, [{ filter: 'brightness(1)' }, { filter: 'brightness(1.8) sepia(.7)', offset: .5 }, { filter: 'brightness(1)' }], 300)
     } else if (action.kind === 'death') {
-      await run(target, [{ opacity: 1 }, { opacity: 0, transform: reduced ? 'none' : 'scale(.8)', filter: action.cause === 'sacrificed' ? 'sepia(1) saturate(3)' : 'grayscale(1)' }], 260)
+      const tint = action.cause === 'sacrificed' ? 'sepia(1) saturate(2)' : 'grayscale(1)'
+      await run(target, reduced ? [{ opacity: 1 }, { opacity: 0 }] : [
+        { transform: 'perspective(700px) rotateX(0deg) rotateZ(0deg) scale(1)', opacity: 1 },
+        { transform: 'perspective(700px) rotateX(-14deg) rotateZ(-5deg) scale(1.04)', offset: .15 },
+        { transform: 'perspective(700px) rotateX(10deg) rotateZ(6deg) scale(1.02)', offset: .25 },
+        { transform: 'perspective(700px) rotateX(-10deg) rotateZ(-7deg) scale(1.03)', offset: .35 },
+        { transform: 'perspective(700px) rotateX(7deg) rotateZ(5deg) scale(1)', offset: .45 },
+        { transform: 'perspective(700px) rotateX(-5deg) rotateZ(-3deg) scale(.98)', filter: tint, offset: .55 },
+        { transform: 'perspective(700px) rotateX(0deg) rotateZ(1deg) scale(.94)', opacity: .9, offset: .68 },
+        { transform: 'perspective(700px) rotateX(16deg) rotateZ(0deg) scale(.65)', opacity: 0, filter: tint },
+      ], 440)
     }
   } finally {
-    signal.removeEventListener('abort', cancel)
-    cancel()
-    floating.forEach(node => node.remove())
-    if (hidden) hidden.style.visibility = ''
+    const cleanup = () => { motion.dispose(); floating.forEach(node => node.remove()) }
+    if (retained && !signal.aborted) retained.push(cleanup)
+    else cleanup()
+  }
+}
+
+/** All marks are already rendered. Deaths overlap, starting 100ms apart. */
+export async function animateSacrificeBatch(frames: BattleFrame[], signal: AbortSignal) {
+  const motion = motionScope(signal)
+  const retained: (() => void)[] = []
+  try {
+    await Promise.all(frames.map(({ action }) => {
+      const badge = find(action.target)?.querySelector<HTMLElement>('.sacrifice-badge')
+      return badge ? motion.tween(badge, {
+        opacity: [.35, 1], scale: matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : [1.22, 1],
+        duration: 180, ease: 'out(3)',
+      }) : Promise.resolve()
+    }))
+    if (signal.aborted) return
+    await Promise.all(sacrificeSchedule(frames).map(async ({ frame, delay }) => {
+      if (delay) await motion.tween({ progress: 0 }, { progress: 1, duration: delay, ease: 'linear' })
+      if (!signal.aborted) await animateBattleAction(frame.action, signal, frame.state, retained)
+    }))
+  } finally {
+    retained.forEach(cleanup => cleanup()); motion.dispose()
   }
 }

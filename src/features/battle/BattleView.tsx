@@ -1,8 +1,10 @@
+import { BattleHand } from './BattleHand'
 import { sacrificePoints } from '../../domain/game'
 import type { Battle, Card, DrawPile, Unit } from '../../domain/game'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { CardFace } from '../../components/cards/Cards'
+import { animate } from 'animejs'
 
 type Props = {
   actionLabel: string
@@ -31,6 +33,8 @@ export function BattleView(props: Props) {
   const viewport = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ width: 900, height: 600 })
   const screen = useRef<HTMLDivElement>(null)
+  const camera = useRef<HTMLDivElement>(null)
+  const balanceMarker = useRef<HTMLElement>(null)
   const [cameraStop, setCameraStop] = useState(1)
   const cardWidth = Math.max(128, Math.min(210, (size.width - 98) / 5))
   const worldWidth = 5 * cardWidth + 98
@@ -87,11 +91,25 @@ export function BattleView(props: Props) {
     }
   }, [])
   const cameraOffset = Math.max(0, worldHeight * scale - size.height) * cameraStop / 2
+  useLayoutEffect(() => {
+    if (!camera.current) return
+    const animation = animate(camera.current, {
+      translateY: -cameraOffset, duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 220, ease: 'out(3)',
+    })
+    return () => { animation.cancel() }
+  }, [cameraOffset])
+  useLayoutEffect(() => {
+    if (!balanceMarker.current) return
+    const animation = animate(balanceMarker.current, {
+      left: `${(battle.balance + 10) * 5}%`, duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 200, ease: 'out(3)',
+    })
+    return () => { animation.cancel() }
+  }, [battle.balance])
   const cameraStyle = { '--world-width': `${worldWidth}px`, '--lane-width': `${cardWidth}px`, '--camera-scale': scale } as CSSProperties
   return <div className="combat-screen" ref={screen}>
     <aside className="combat-rail left-rail" aria-label="战斗状态">
       <div className="combat-identity"><span>❋</span><strong>雾林边境</strong><small>地图第 {battle.encounter} 层</small></div>
-      <div className="combat-scale" aria-label="战斗天平"><span>{battle.difficulty === 'boss' ? '荒野之王' : battle.difficulty === 'elite' ? '精英' : '荒野守卫'}</span><strong>{battle.balance === 0 ? '平衡' : (battle.balance > 0 ? '敌方' : '我方') + '承压 ' + Math.abs(battle.balance)}</strong><div className="scale-track"><i style={{left: ((battle.balance + 10) * 5) + '%'}}/></div><div className="scale-ends"><span data-motion="life-player">我方 −10</span><span data-motion="life-enemy">敌方 +10</span></div></div>
+      <div className="combat-scale" aria-label="战斗天平"><span>{battle.difficulty === 'boss' ? '荒野之王' : battle.difficulty === 'elite' ? '精英' : '荒野守卫'}</span><strong>{battle.balance === 0 ? '平衡' : (battle.balance > 0 ? '敌方' : '我方') + '承压 ' + Math.abs(battle.balance)}</strong><div className="scale-track"><i ref={balanceMarker}/></div><div className="scale-ends"><span data-motion="life-player">我方 −10</span><span data-motion="life-enemy">敌方 +10</span></div></div>
       <div className="combat-round"><span>回合</span><strong>{String(battle.round).padStart(2, '0')}</strong><span>{settling ? '交锋结算中' : '你的部署阶段'}</span></div>
 
       <div className="rail-menu"><a href="/creatures" target="_blank" rel="noopener noreferrer" title="在新标签页打开生物图鉴">生物图鉴 ↗</a><button onClick={props.onLog}>战斗记录</button><button disabled={settling} onClick={props.onReset}>重新开始</button></div>
@@ -103,7 +121,7 @@ export function BattleView(props: Props) {
       <div className="combat-intents"><span className="rank-label">来袭</span>{Array.from({ length: 5 }, (_, col) => <div key={col}>{battle.intents.filter(i => i.col === col).map(i => <button data-motion={`intent-${i.card.id}`} key={i.card.id} onClick={() => onInspect(i.card)} onContextMenu={event => { event.preventDefault(); onInspect(i.card) }}>↓ {i.card.name}<small>{i.row === 0 ? '前排' : '后排'}</small></button>)}</div>)}</div>
       </div></div>
       <div className="camera-viewport" ref={viewport} tabIndex={0} aria-label="战场镜头：W 或滚轮向上，S 或滚轮向下">
-      <div className="camera-space" data-camera-stop={cameraStop} style={{ height: worldHeight * scale, width: worldWidth * scale, transform: `translateY(${-cameraOffset}px)` }}>
+      <div className="camera-space" ref={camera} data-camera-stop={cameraStop} style={{ height: worldHeight * scale, width: worldWidth * scale }}>
       <div className="camera-world" style={{ transform: `scale(${scale})` }}>
       {(['enemy', 'player'] as const).map(side => <div className={`combat-side ${side}`} key={side}>
         {(side === 'enemy' ? [1, 0] : [0, 1]).map(row => <div className="combat-rank" key={row}>
@@ -133,10 +151,9 @@ export function BattleView(props: Props) {
       <button className="primary combat-end" disabled={settling || locked || battle.status !== 'playing'} onClick={props.onEnd}>{settling ? '行动中…' : locked ? '请先完成部署' : '结束回合'} <span>→</span></button>
     </aside>
 
-    <section className="combat-hand" aria-label="你的手牌"><div className="combat-hand-strip">
-      {battle.hand.map(c => <button data-motion={`hand-${c.id}`} key={c.id} className={`combat-hand-card ${selected === c.id ? 'selected' : ''} ${c.cost > availableSacrifices && selected !== c.id ? 'unaffordable' : ''}`} aria-label={`选择 ${c.name}，${c.cost} 费`} aria-pressed={selected === c.id} disabled={settling || locked || battle.status !== 'playing'} onClick={() => props.onSelect(selected === c.id ? null : c.id)}><CardFace card={c} onInspect={onInspect} /></button>)}
-      {!battle.hand.length && <p className="hand-empty">手牌已空 · 从右侧牌堆选择抽牌</p>}
-    </div></section>
+    <BattleHand cards={battle.hand} selected={selected} available={availableSacrifices}
+      disabled={settling || locked || battle.status !== 'playing'} settling={settling}
+      onSelect={props.onSelect} onInspect={onInspect}/>
   </div>
 }
 

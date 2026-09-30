@@ -1,8 +1,20 @@
-.card-flight.camera-world { position: fixed; z-index: 100; pointer-events: none; transform-origin: top left; filter: drop-shadow(0 18px 18px #0008); }
-.card-flight .combat-slot { display: block; overflow: hidden; border-radius: 12px; }
 .damage-number { position: fixed; z-index: 110; pointer-events: none; color: #ffe3b5; font-size: 34px; font-weight: 800; text-shadow: 0 2px 4px #000, 0 0 18px #dd6846; }
 .combat-field.is-resolving { filter: none; }
 .combat-slot:disabled, .combat-hand-card:disabled { opacity: 1; }
 .combat-slot { position: relative; }
 .combat-slot:has(.card-face) { overflow: visible; }
 .action-label { color: #e7d4a4; font-size: 17px; line-height: 1.6; }
+.attack-stage { position: fixed; inset: 0; z-index: 100; pointer-events: none; perspective: 1100px; transform-style: preserve-3d; }
+.attack-card.camera-world { position: absolute; transform-origin: center; transform-style: preserve-3d; will-change: transform; }
+.attack-strip { position: absolute; left: 0; top: 0; width: 100%; overflow: hidden; transform-origin: center; backface-visibility: visible; }
+.attack-shadow { position: absolute; border-radius: 12px; background: #000; pointer-events: none; }
+.combat-scale .scale-track i { left: 50%; transition: none; }
+.deploy-stage { position: fixed; inset: 0; z-index: 100; pointer-events: none; perspective: 1000px; transform-style: preserve-3d; }
+.deploy-card.camera-world { position: absolute; transform-origin: center; will-change: transform; }
+.deploy-card .combat-slot { display: block; width: 100%; height: 100%; overflow: hidden; border-radius: 8px; }
+.deploy-shadow { position: absolute; background: #000; border-radius: 9px; }
+.fan-hand.combat-hand { position: relative; display: block; overflow: visible; padding: 0; z-index: 10; pointer-events: auto; }
+.fan-hand .combat-hand-strip { position: relative; display: block; width: 100%; height: 100%; padding: 0; }
+.fan-hand .combat-hand-card { position: absolute; left: 50%; bottom: 24px; margin-left: -66px; width: 132px; aspect-ratio: 3 / 4; transform-origin: center; transition: none; pointer-events: auto; will-change: transform; }
+.fan-hand .combat-hand-card .card-face { height: 100%; box-shadow: 0 6px 14px #0005; }
+.fan-hand .hand-empty { text-align: center; padding-top: 70px; }

@@ -8,7 +8,7 @@
 }
 .camera-head .combat-columns, .camera-head .combat-intents { grid-template-columns: var(--header-label) repeat(5, var(--lane-width)); gap: var(--header-gap); }
 .camera-viewport { flex: 1; min-height: 0; overflow: clip; touch-action: none; }
-.camera-space { position: relative; margin-inline: auto; transition: transform 220ms cubic-bezier(.22, .8, .24, 1); will-change: transform; }
+.camera-space { position: relative; margin-inline: auto; will-change: transform; }
 .camera-world { width: var(--world-width); position: absolute; top: 0; left: 0; transform-origin: top left; }
 .camera-world .combat-side { display: flex; flex-direction: column; gap: 12px; }
 .camera-world .combat-side.player { margin-top: 12px; padding-top: 20px; border-top: 1px solid #b6c78638; }

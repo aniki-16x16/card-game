@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { X } from 'lucide-react'
-import { animateBattleAction } from '../features/battle/battleAnimation'
+import { animateBattleAction, animateSacrificeBatch } from '../features/battle/battleAnimation'
 import { Creature } from '../components/creatures/Creature'
 import { CardFace } from '../components/cards/Cards'
 import { SigilIcon } from '../components/cards/SigilIcon'
@@ -40,12 +40,17 @@ export default function App() {
     window.scrollTo({top:0})
   }
   function acceptRun(next:Adventure) { setRun(next); setInspected(null) }
-  async function play(frames:BattleFrame[],finalState:Battle) {
+  async function play(frames:BattleFrame[],finalState:Battle,markedState?:Battle) {
     if(playing.current) return
     playing.current=true
     const controller=new AbortController(); animationAbort.current=controller
-    setSettling(true);setInspected(null)
+    flushSync(()=>{setSettling(true);setInspected(null);if(markedState){setBattle(markedState);setActionLabel('献祭')}})
     try {
+      if(markedState) {
+        await animateSacrificeBatch(frames,controller.signal)
+        if(!controller.signal.aborted) flushSync(()=>setBattle(finalState))
+        return
+      }
       for(const frame of frames) {
         if(controller.signal.aborted) return
         flushSync(()=>setActionLabel(frame.action.label))
@@ -60,7 +65,7 @@ export default function App() {
   return <div className={`app-shell ${battle ? 'battle-mode' : 'adventure-mode'}`}>
     {battle ? <main><BattleView actionLabel={actionLabel} battle={battle} selected={selected} settling={settling} canForge={false}
       onSelect={id=>{if(!playing.current)setBattle(selectSummon(battle,id))}}
-      onSacrifice={id=>{if(playing.current)return;const p=markSacrifice(battle,id);if(p.frames.length)void play(p.frames,p.state);else setBattle(p.state)}}
+      onSacrifice={id=>{if(playing.current)return;const p=markSacrifice(battle,id);if(p.frames.length && battle.summon)void play(p.frames,p.state,{...battle,summon:{...battle.summon,sacrifices:[...new Set([...battle.summon.sacrifices,id])]}});else setBattle(p.state)}}
       onDraw={pile=>{if(!playing.current)setBattle(drawCard(battle,pile))}}
       onInspect={setInspected} onEnd={()=>{if(playing.current)return;const p=planRound(battle);void play(p.frames,p.state)}}
       onForge={()=>setShowMap(true)} onReset={()=>setReset(true)} onLog={()=>setShowLog(true)}
