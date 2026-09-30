@@ -2,7 +2,7 @@
 .compact .sigil-icon{width:14px;height:14px}
 .sigil-detail-list .sigil-icon{width:26px;height:26px}
 .sigil-choices button{display:inline-flex;align-items:center;gap:5px}
-.sigil-glossary b .sigil-icon,.catalog-card strong .sigil-icon{margin-right:5px}
+.catalog-card strong .sigil-icon{margin-right:5px}
 .creature .marking{fill:var(--creature-accent);stroke:none}
 .creature .outline-mark{fill:none;stroke:var(--creature-accent);stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
 .creature .silhouette{fill:currentColor}

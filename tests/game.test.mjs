@@ -1,13 +1,14 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { rulesDeck } from './fixtures/deck.mjs'
 import { getIntents, getRewards, sacrificePoints, initialDeck, makeCard, makeSquirrel, selectSummon, markSacrifice, drawCard, startBattle, deploy, planRound, resolveRound, transfer, load } from '../src/domain/game.ts'
 
 const unit = (index, id, patch = {}) => { const card = makeCard(index, id); return { ...card, hp: card.health, ...patch } }
 // Combat fixtures use a known hand independently of seeded shuffle order.
-const quietBattle = () => ({ ...startBattle(initialDeck(), 1, 123), hand: [...initialDeck().slice(0, 5), makeSquirrel('squirrel-0')], deck: initialDeck().slice(5), intents: [] })
+const quietBattle = () => ({ ...startBattle(rulesDeck(), 1, 123), hand: [...rulesDeck().slice(0, 5), makeSquirrel('squirrel-0')], deck: rulesDeck().slice(5), intents: [] })
 
 test('free squirrel deployment removes the hand card and rejects occupied or invalid slots', () => {
-  const start = selectSummon(startBattle(initialDeck()), 'squirrel-0')
+  const start = selectSummon(startBattle(rulesDeck()), 'squirrel-0')
   const next = deploy(start, 'squirrel-0', 0, 0)
   assert.equal(next.hand.length, 5); assert.equal(next.player[0][0].hp, 1)
   assert.equal(start.player[0][0], null); assert.equal(next.summon, null)
@@ -113,7 +114,7 @@ test('deck exhaustion causes increasing fatigue and can end the battle', () => {
   assert.equal(resolveRound(next).status, 'lost')
 })
 test('repeated transfers consume donors and preserve native sigils, stats and capacity', () => {
-  let cards = initialDeck()
+  let cards = rulesDeck()
   cards = transfer(cards, 'starter-1', 'starter-0', 'armor').deck
   cards = transfer(cards, 'starter-2', 'starter-0', 'ranged').deck
   cards = transfer(cards, 'starter-3', 'starter-0', 'support').deck
@@ -125,14 +126,14 @@ test('repeated transfers consume donors and preserve native sigils, stats and ca
   assert.equal(replacement.error, undefined); assert.deepEqual(replacement.deck.find(c => c.id === 'starter-0').added, ['rebirth'])
 })
 test('transfer rejects self, duplicate ability, missing ability, and a deck below minimum size', () => {
-  const cards = initialDeck()
+  const cards = rulesDeck()
   assert.ok(transfer(cards, 'starter-1', 'starter-1', 'armor').error)
   assert.ok(transfer(cards, 'starter-1', 'starter-9', 'armor').error)
   assert.ok(transfer(cards, 'starter-0', 'starter-1', 'rebirth').error)
   assert.ok(transfer(cards.slice(0, 6), 'starter-1', 'starter-0', 'armor').error)
 })
 test('inherited sigils can be transferred again without increasing receiver capacity', () => {
-  const first = transfer(initialDeck(), 'starter-1', 'starter-0', 'armor')
+  const first = transfer(rulesDeck(), 'starter-1', 'starter-0', 'armor')
   const second = transfer(first.deck, 'starter-0', 'starter-3', 'armor')
   const receiver = second.deck.find(c => c.id === 'starter-3')
   assert.deepEqual(receiver.native, ['support']); assert.deepEqual(receiver.added, ['armor']); assert.equal(receiver.capacity, 3)
@@ -410,7 +411,7 @@ test('undying unit counts only once per summon and still dies when killed', () =
 })
 
 test('combined sacrifice sigils work on any species, including transferred sigils', () => {
-  let cards = transfer(initialDeck(), 'starter-12', 'starter-0', 'triple').deck
+  let cards = transfer(rulesDeck(), 'starter-12', 'starter-0', 'triple').deck
   assert.ok(cards.find(c => c.id === 'starter-0').added.includes('triple'))
   cards = transfer(cards, 'starter-13', 'starter-3', 'undying').deck
   assert.ok(cards.find(c => c.id === 'starter-3').added.includes('undying'))
@@ -451,12 +452,12 @@ test('enemy generation and actual deployment are capped at one, including rebirt
 })
 
 test('map seed controls independent enemy lanes and stable unique rewards', () => {
-  const s = startBattle(initialDeck(), 1, 123)
+  const s = startBattle(rulesDeck(), 1, 123)
   assert.deepEqual(planRound(s), planRound(s))
   assert.equal(planRound(s).state.mapSeed, 123)
   const rewards = getRewards(123, 1)
   assert.equal(new Set(rewards.map(c => c.species)).size, 3)
-  getIntents(6, 2, 123); startBattle(initialDeck(), 2, 123)
+  getIntents(6, 2, 123); startBattle(rulesDeck(), 2, 123)
   assert.deepEqual(getRewards(123, 1), rewards)
   const seen = new Set(Array.from({ length: 300 }, (_, seed) => getRewards(seed, 1)).flat().map(c => c.species))
   assert.ok(seen.has('goat')); assert.ok(seen.has('experiment'))

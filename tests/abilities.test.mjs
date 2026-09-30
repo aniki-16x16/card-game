@@ -28,7 +28,6 @@ test('card pool has 55 distinct cards, requested tribes and cost curve, all effe
   assert.equal(allTokens().length, 6)
   for (const c of allTokens()) assert.equal(c.token, true)
   for (let seed = 0; seed < 200; seed++) for (const c of getRewards(seed, 1)) assert.ok(!c.token && c.species !== 'squirrel')
-  assert.equal(initialDeck().filter(c => c.cost === 0).length, 3)
 })
 
 test('flying bypasses ground units from either row and still aims at the chosen lane', () => {

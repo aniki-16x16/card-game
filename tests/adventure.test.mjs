@@ -1,10 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { rulesDeck } from './fixtures/deck.mjs'
 import { generateMap, newAdventure, availableNodes, enterNode, finishNode, currentNode, categoryOptions, chooseCategory, visitRewards, takeReward, removeCard, upgradeCard, upgradeRisk, transferAtNode, recordBattle, isCombat } from '../src/domain/adventure.ts'
-import { creature, initialDeck, startBattle, getIntents, resolveRound } from '../src/domain/game.ts'
+import { creature, startBattle, getIntents, resolveRound } from '../src/domain/game.ts'
 import { BattleEngine } from '../src/domain/battleEngine.ts'
 
-function event(kind, seed=1, deck=initialDeck()) {
+function event(kind, seed=1, deck=rulesDeck()) {
   const run={...newAdventure(seed),deck,nodes:[{id:'test',floor:1,x:.5,kind,next:[]}]}
   return enterNode(run,'test')
 }
@@ -37,7 +38,7 @@ test('two-stage categories lock and yield three distinct matching cards with sta
 test('one deletion or transfer per node and minimum deck size',()=>{
   const r=event('remove'), n=removeCard(r,r.deck[0].id)
   assert.equal(n.deck.length,r.deck.length-1);assert.equal(removeCard(n,n.deck[0].id),n)
-  const small=event('remove',1,initialDeck().slice(0,6));assert.equal(removeCard(small,small.deck[0].id),small)
+  const small=event('remove',1,rulesDeck().slice(0,6));assert.equal(removeCard(small,small.deck[0].id),small)
   const forge=event('transfer'), result=transferAtNode(forge,'starter-1','starter-0','armor',[])
   assert.equal(result.error,undefined);assert.equal(result.run.deck.length,13);assert.ok(result.run.deck.find(c=>c.id==='starter-0').added.includes('armor'));assert.equal(transferAtNode(result.run,'starter-2','starter-0','ranged',[]).run,result.run)
 })
@@ -75,15 +76,15 @@ test('full route runs through rewards and events to boss completion; loss preven
   const loss=recordBattle(event('battle'),'lost');assert.equal(loss.status,'lost');assert.deepEqual(availableNodes(loss),[]);assert.equal(finishNode(loss),loss)
 })
 test('scale starts neutral, cancels damage and ends immediately at positive or negative ten',()=>{
-  const s=startBattle(initialDeck(),1,1);s.intents=[];const e=new BattleEngine(s)
+  const s=startBattle(rulesDeck(),1,1);s.intents=[];const e=new BattleEngine(s)
   s.player[0][0]={...creature('wolf','p'),attack:7,hp:3};s.enemy[0][1]={...creature('wolf','e'),attack:4,hp:3}
   e.turn('player');assert.equal(s.balance,7);assert.equal(s.status,'playing');e.turn('enemy');assert.equal(s.balance,3)
   e.turn('player');assert.equal(s.balance,10);assert.equal(s.status,'won');e.turn('enemy');assert.equal(s.balance,10)
-  const loss=startBattle(initialDeck(),1,2);loss.balance=-9;loss.enemy[0][0]={...creature('mouse','m'),hp:1};new BattleEngine(loss).turn('enemy');assert.equal(loss.balance,-10);assert.equal(loss.status,'lost')
-  assert.equal(startBattle(initialDeck(),18,1,'boss').balance,0)
+  const loss=startBattle(rulesDeck(),1,2);loss.balance=-9;loss.enemy[0][0]={...creature('mouse','m'),hp:1};new BattleEngine(loss).turn('enemy');assert.equal(loss.balance,-10);assert.equal(loss.status,'lost')
+  assert.equal(startBattle(rulesDeck(),18,1,'boss').balance,0)
 })
 test('boss and elite use one arrival and distinct configurations; fatigue moves scale',()=>{
   for(const kind of ['normal','elite','boss'])for(let round=1;round<12;round++)assert.equal(getIntents(round,6,1,kind).length,1)
   assert.ok(getIntents(1,18,1,'boss')[0].card.native.includes('armor'));assert.ok(getIntents(2,18,1,'boss')[0].card.native.includes('flying'))
-  const s=startBattle(initialDeck(),1,1);s.intents=[];s.deck=[];s.squirrelDeck=[];s.balance=-9;const n=resolveRound(s);assert.equal(n.balance,-10);assert.equal(n.status,'lost')
+  const s=startBattle(rulesDeck(),1,1);s.intents=[];s.deck=[];s.squirrelDeck=[];s.balance=-9;const n=resolveRound(s);assert.equal(n.balance,-10);assert.equal(n.status,'lost')
 })

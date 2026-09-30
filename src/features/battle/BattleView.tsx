@@ -17,7 +17,6 @@ type Props = {
   onInspect: (card: Card | Unit) => void
   onEnd: () => void
   onForge: () => void
-  onRules: () => void
   onReset: () => void
   onLog: () => void
 }
@@ -92,10 +91,10 @@ export function BattleView(props: Props) {
   return <div className="combat-screen" ref={screen}>
     <aside className="combat-rail left-rail" aria-label="战斗状态">
       <div className="combat-identity"><span>❋</span><strong>雾林边境</strong><small>地图第 {battle.encounter} 层</small></div>
-      <div className="combat-scale" aria-label="战斗天平"><span>{battle.difficulty === 'boss' ? '荒野之王 · 奇数回合硬甲，偶数回合飞行' : battle.difficulty === 'elite' ? '精英 · 敌军生命 +1' : '荒野守卫'}</span><strong>{battle.balance === 0 ? '平衡' : (battle.balance > 0 ? '敌方' : '我方') + '承压 ' + Math.abs(battle.balance)}</strong><div className="scale-track"><i style={{left: ((battle.balance + 10) * 5) + '%'}}/></div><div className="scale-ends"><span data-motion="life-player">我方 −10</span><span data-motion="life-enemy">敌方 +10</span></div><small>任一方达到 10 点即落败</small></div>
+      <div className="combat-scale" aria-label="战斗天平"><span>{battle.difficulty === 'boss' ? '荒野之王' : battle.difficulty === 'elite' ? '精英' : '荒野守卫'}</span><strong>{battle.balance === 0 ? '平衡' : (battle.balance > 0 ? '敌方' : '我方') + '承压 ' + Math.abs(battle.balance)}</strong><div className="scale-track"><i style={{left: ((battle.balance + 10) * 5) + '%'}}/></div><div className="scale-ends"><span data-motion="life-player">我方 −10</span><span data-motion="life-enemy">敌方 +10</span></div></div>
       <div className="combat-round"><span>回合</span><strong>{String(battle.round).padStart(2, '0')}</strong><span>{settling ? '交锋结算中' : '你的部署阶段'}</span></div>
 
-      <small className="map-seed">地图种子 {battle.mapSeed}</small><div className="rail-menu"><a href="/creatures" target="_blank" rel="noopener noreferrer" title="在新标签页打开生物图鉴">生物图鉴 ↗</a><button onClick={props.onRules}>游戏规则</button><button onClick={props.onLog}>战斗记录</button><button disabled={settling} onClick={props.onReset}>重新开始</button></div>
+      <div className="rail-menu"><a href="/creatures" target="_blank" rel="noopener noreferrer" title="在新标签页打开生物图鉴">生物图鉴 ↗</a><button onClick={props.onLog}>战斗记录</button><button disabled={settling} onClick={props.onReset}>重新开始</button></div>
     </aside>
 
     <section className={`combat-field camera-field ${settling ? 'is-resolving' : ''}`} aria-label="战场" style={cameraStyle}>
@@ -126,7 +125,7 @@ export function BattleView(props: Props) {
     <aside className="combat-rail right-rail" aria-label="战斗操作">
       <button className="rail-forge" disabled={settling} onClick={props.onForge}>查看地图与牌组</button>
       <div className="combat-resource"><span>{choosingSacrifices ? '已标记费用' : locked ? '献祭已完成' : '可提供费用'}</span><strong>{choosingSacrifices ? sacrificePoints(battle, battle.summon?.sacrifices) : locked ? card?.cost : availableSacrifices}{choosingSacrifices && <small> / {card.cost}</small>}</strong></div>
-      <div className="combat-instruction" role="status">{settling ? <p className="action-label">{props.actionLabel}</p> : card ? <><strong>{card.name}</strong><p>{choosingSacrifices ? `点击己方单位标记献祭，凑够 ${card.cost} 费且有部署空位时立即支付。${availableSacrifices < card.cost ? '场上可提供的费用不足，可取消后部署松鼠。' : ''}` : locked ? '献祭已完成，不可取消。请选择己方空位部署。' : '免费召唤：点击己方空位部署。'}</p>{!locked && <button onClick={() => props.onSelect(null)}>{choosingSacrifices ? '取消献祭' : '取消选择'}</button>}<button onClick={() => onInspect(card)}>查看印记</button></> : <p>点击手牌开始召唤<br/>右键卡片查看印记</p>}</div>
+      {(settling || card) && <div className="combat-instruction" role="status">{settling ? <p className="action-label">{props.actionLabel}</p> : card && <><strong>{card.name}</strong>{choosingSacrifices && availableSacrifices < card.cost && <p>费用不足</p>}{!locked && <button onClick={() => props.onSelect(null)}>{choosingSacrifices ? '取消献祭' : '取消选择'}</button>}<button onClick={() => onInspect(card)}>查看印记</button></>}</div>}
       <div className="draw-piles" aria-label="选择抽牌牌堆"><span>{battle.canDraw ? '本回合可抽 1 张' : '本回合抽牌已结束'}</span>
         <button disabled={settling || !!battle.summon || !battle.canDraw || !battle.deck.length || battle.status !== 'playing'} onClick={() => props.onDraw('deck')}>主牌堆 <strong>{battle.deck.length}</strong><small>抽取生物</small></button>
         <button disabled={settling || !!battle.summon || !battle.canDraw || !battle.squirrelDeck.length || battle.status !== 'playing'} onClick={() => props.onDraw('squirrelDeck')}>松鼠牌堆 <strong>{battle.squirrelDeck.length}</strong><small>0 费 · 0 攻 / 1 血</small></button>

@@ -99,10 +99,6 @@
 .sigil-detail-list small { font-size: 13px; color: #9bb583; font-weight: 400; margin-left: 12px; }
 .battle-log-dialog { list-style: none; padding: 0; font-size: 15px; line-height: 1.9; color: #b3c79b; }
 .battle-log-dialog li { padding: 10px 0; border-bottom: 1px solid #89a26930; }
-.modal .rule-block p, .modal .modal-description { font-size: 15px; }
-.modal .rule-block h3, .modal .sigil-glossary b { font-size: 16px; }
-.modal .sigil-glossary p { font-size: 14px; }
-.modal .sigil-glossary small { font-size: 12px; }
 .modal .primary, .modal .secondary { font-size: 15px; }
 .modal .eyebrow { font-size: 12px; }
 .modal .close { font-size: 30px; padding: 0 8px; }
@@ -211,5 +207,3 @@
   .draw-piles button { padding: 6px; font-size: 12px; }
   .draw-piles small { font-size: 10px; }
 }
-
-.map-seed { color: #93a488; font-size: 11px; overflow-wrap: anywhere; }
