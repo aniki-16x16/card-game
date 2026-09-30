@@ -4,7 +4,7 @@ import { CardFace } from '../../components/cards/Cards'
 import { SigilIcon } from '../../components/cards/SigilIcon'
 import { SIGILS, TRIBES, sigils, transfer } from '../../domain/game'
 import type { Card, Sigil } from '../../domain/game'
-import { availableNodes, currentNode, NODE_NAMES, categoryOptions, chooseCategory, visitRewards, takeReward, removeCard, upgradeCard, upgradeRisk, transferAtNode, finishNode, isCombat } from '../../domain/adventure'
+import { availableNodes, getMapReachability, currentNode, NODE_NAMES, categoryOptions, chooseCategory, visitRewards, takeReward, removeCard, upgradeCard, upgradeRisk, transferAtNode, finishNode, isCombat } from '../../domain/adventure'
 import type { Adventure } from '../../domain/adventure'
 import './Adventure.css'
 
@@ -14,20 +14,19 @@ export function MapView({ run, onEnter, readOnly = false }: { run: Adventure; on
   useEffect(() => { if (run.path.length && !readOnly) root.current?.querySelector('.available')?.scrollIntoView({ block: 'center' }) }, [run.path.length, readOnly])
   const available = availableNodes(run), floors = [...new Set(run.nodes.map(n => n.floor))]
   const frontier = run.visit?.nodeId ?? run.path.at(-1)
-  const reachedFloor = run.nodes.find(node => node.id === frontier)?.floor ?? 0
-  const upcoming = run.status !== 'playing' ? [] : run.visit ? currentNode(run)?.next ?? [] : available
+  const { upcoming, reachable } = getMapReachability(run)
   const y = (floor: number) => floors.indexOf(floor) * 108 + 50
   return <div ref={root} className="journey-map" aria-label="冒险地图">
     <svg viewBox={`0 0 800 ${floors.length * 108}`} preserveAspectRatio="none" aria-hidden="true">
       {run.nodes.flatMap(node => node.next.map(id => {
         const next = run.nodes.find(n => n.id === id)!
-        const state = next.floor <= reachedFloor ? 'walked' : node.id === frontier && upcoming.includes(id) ? 'upcoming' : 'unavailable'
+        const state = node.id === frontier && upcoming.has(id) ? 'upcoming' : reachable.has(node.id) && reachable.has(id) ? 'reachable' : 'unreachable'
         return <line key={`${node.id}-${id}`} x1={node.x * 800} y1={y(node.floor)} x2={next.x * 800} y2={y(next.floor)} className={state}/>
       }))}
     </svg>
     <div style={{height: floors.length * 108}}>{run.nodes.map(node => {
       const Icon = icons[node.kind], visited = run.path.includes(node.id), active = run.visit?.nodeId === node.id
-      const state = node.floor <= reachedFloor ? 'visited' : upcoming.includes(node.id) ? 'available' : 'unavailable'
+      const state = upcoming.has(node.id) ? 'available' : reachable.has(node.id) ? 'reachable' : 'unreachable'
       return <div key={node.id} style={{left:`${node.x*100}%`,top:y(node.floor)}} className={`map-node ${node.kind} ${state} ${active ? 'current' : ''}`}>
         <button className="node-ring" disabled={readOnly || !available.includes(node.id)} onClick={() => onEnter(node.id)} aria-current={active ? 'step' : undefined} aria-label={`${node.bonus ? '精英专属' : `第${node.floor}层`} ${NODE_NAMES[node.kind]}${visited ? ' 已完成' : ''}${active ? ' 当前节点' : ''}`}>
           {visited ? <Check/> : <Icon/>}

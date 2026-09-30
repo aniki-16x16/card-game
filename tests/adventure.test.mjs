@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { rulesDeck } from './fixtures/deck.mjs'
-import { generateMap, newAdventure, availableNodes, enterNode, finishNode, currentNode, categoryOptions, chooseCategory, visitRewards, takeReward, removeCard, upgradeCard, upgradeRisk, transferAtNode, recordBattle, isCombat } from '../src/domain/adventure.ts'
+import { generateMap, newAdventure, availableNodes, getMapReachability, enterNode, finishNode, currentNode, categoryOptions, chooseCategory, visitRewards, takeReward, removeCard, upgradeCard, upgradeRisk, transferAtNode, recordBattle, isCombat } from '../src/domain/adventure.ts'
 import { creature, startBattle, getIntents, resolveRound } from '../src/domain/game.ts'
 import { BattleEngine } from '../src/domain/battleEngine.ts'
 
@@ -9,6 +9,32 @@ function event(kind, seed=1, deck=rulesDeck()) {
   const run={...newAdventure(seed),deck,nodes:[{id:'test',floor:1,x:.5,kind,next:[]}]}
   return enterNode(run,'test')
 }
+test('map reachability dims abandoned future branches while preserving their reachable merge', () => {
+  const nodes = [
+    { id: 'start', floor: 1, x: .5, kind: 'tribe', next: ['left', 'right'] },
+    { id: 'left', floor: 2, x: .2, kind: 'battle', next: ['left-next'] },
+    { id: 'right', floor: 2, x: .8, kind: 'elite', next: ['right-next'] },
+    { id: 'left-next', floor: 3, x: .2, kind: 'upgrade', next: ['merge'] },
+    { id: 'right-next', floor: 3, x: .8, kind: 'transfer', next: ['merge', 'bonus'] },
+    { id: 'bonus', floor: 3.5, x: .8, kind: 'upgrade', next: ['boss'] },
+    { id: 'merge', floor: 4, x: .5, kind: 'battle', next: ['boss'] },
+    { id: 'boss', floor: 5, x: .5, kind: 'boss', next: [] },
+  ]
+  const run = { ...newAdventure(1), nodes, path: ['start'] }
+  const before = getMapReachability(run)
+  assert.deepEqual([...before.upcoming].sort(), ['left', 'right'])
+  assert.equal(before.reachable.has('bonus'), true)
+  const chosen = enterNode(run, 'left'), result = getMapReachability(chosen)
+  assert.deepEqual([...result.upcoming], ['left-next'])
+  assert.deepEqual([...result.reachable].sort(), ['boss', 'left-next', 'merge'])
+  assert.deepEqual(availableNodes(chosen), [], 'future routes remain visible during a visit without enabling navigation')
+  const complete = { ...chosen, visit: { ...chosen.visit, done: true } }
+  assert.deepEqual(getMapReachability(finishNode(complete)), result)
+  for (const status of ['won', 'lost']) {
+    const ended = getMapReachability({ ...chosen, status })
+    assert.equal(ended.upcoming.size, 0); assert.equal(ended.reachable.size, 0)
+  }
+})
 test('seeded maps are connected DAGs, converge, have at most five nodes per layer and exclusive elite rewards',()=>{
   for(let seed=0;seed<120;seed++) {
     const nodes=generateMap(seed)

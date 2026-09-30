@@ -61,6 +61,20 @@ export function availableNodes(run: Adventure): string[] {
   if (run.status !== 'playing' || run.visit) return []
   return run.path.length ? run.nodes.find(n => n.id === run.path.at(-1))!.next : run.nodes.filter(n => n.floor === 1).map(n => n.id)
 }
+export function getMapReachability(run: Adventure): { upcoming: Set<string>; reachable: Set<string> } {
+  const upcoming = new Set(run.status !== 'playing' ? [] : run.visit ? currentNode(run)?.next ?? [] : availableNodes(run))
+  const nodes = new Map(run.nodes.map(node => [node.id, node]))
+  const reachable = new Set<string>(), pending = [...upcoming]
+  while (pending.length) {
+    const id = pending.pop()!
+    if (reachable.has(id)) continue
+    const node = nodes.get(id)
+    if (!node) continue
+    reachable.add(id)
+    pending.push(...node.next)
+  }
+  return { upcoming, reachable }
+}
 export function enterNode(run: Adventure, id: string): Adventure {
   if (!availableNodes(run).includes(id)) return run
   return { ...run, visit: { nodeId: id, attempts: 0, stat: createRandom(deriveSeed(run.seed, `upgrade-stat:${id}`)).int(2) ? 'attack' : 'health', done: false, message: '' } }
