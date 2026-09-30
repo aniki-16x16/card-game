@@ -5,7 +5,7 @@ import { allCreatures, allTokens, creature, SIGILS, initialDeck, startBattle, pl
 
 const setup = () => {
   const s = startBattle(initialDeck(), 1, 123)
-  s.intents = []; s.hand = []
+  s.intents = []; s.hand = []; s.canDraw = false
   const frames = []
   const e = new BattleEngine(s, (action, state) => frames.push({ action, state }))
   return { s, e, frames }

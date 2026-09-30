@@ -38,6 +38,7 @@
 .combat-deck strong { color: #d7e3bd; margin-left: 10px; font-size: 24px; font-weight: 500; }
 .combat-deck > span { display: block; margin-top: 6px; font-size: 14px; }
 .combat-end { width: 100%; font-size: 16px; padding: 15px 12px; gap: 6px; }
+.combat-end.draw-rejected { transition: none; }
 .combat-field { grid-column: 2; grid-row: 1; min-height: 0; display: grid; grid-template-rows: 22px auto minmax(0, 1fr) minmax(0, 1fr); gap: 9px; padding: 0; transition: filter .3s; }
 .combat-field.is-resolving { filter: brightness(1.3); }
 .combat-columns, .combat-intents, .combat-rank { display: grid; grid-template-columns: 34px repeat(5, minmax(0, 1fr)); gap: 12px; }

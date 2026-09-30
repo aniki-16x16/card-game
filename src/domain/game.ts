@@ -84,6 +84,9 @@ export function drawCard(state: Battle, pile: DrawPile): Battle {
   s.log.unshift(`从${pile === 'deck' ? '主牌堆' : '松鼠牌堆'}抽到 ${card.name}。`)
   return s
 }
+export function requiresDraw(state: Battle): boolean {
+  return state.status === 'playing' && state.canDraw && (state.deck.length > 0 || state.squirrelDeck.length > 0)
+}
 export function deploy(state: Battle, id: string, row: number, col: number, record?: Recorder): Battle {
   const card = state.hand.find(c => c.id === id)
   if (state.status !== 'playing' || !card || state.summon?.cardId !== id || (card.cost > 0 && !state.summon.paid) || !Number.isInteger(row) || !Number.isInteger(col) || !state.player[row] || col < 0 || col > 4 || state.player[row][col]) return state
@@ -107,7 +110,7 @@ export function planRound(state: Battle): { frames: BattleFrame[]; state: Battle
 }
 export type Recorder = (action: BattleAction, state: Battle) => void
 export function resolveRound(state: Battle, record?: Recorder): Battle {
-  if (state.status !== 'playing' || state.summon?.paid) return state
+  if (state.status !== 'playing' || state.summon?.paid || requiresDraw(state)) return state
   const s = structuredClone(state); s.summon = null
   const engine = new BattleEngine(s, record)
   const arriving = [...s.intents].sort((a, b) => a.col - b.col || b.row - a.row).slice(0, 1)

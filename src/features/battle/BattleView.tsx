@@ -1,5 +1,5 @@
 import { BattleHand } from './BattleHand'
-import { sacrificePoints } from '../../domain/game'
+import { requiresDraw, sacrificePoints } from '../../domain/game'
 import type { Battle, Card, DrawPile, Unit } from '../../domain/game'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
@@ -35,6 +35,37 @@ export function BattleView(props: Props) {
   const screen = useRef<HTMLDivElement>(null)
   const camera = useRef<HTMLDivElement>(null)
   const balanceMarker = useRef<HTMLElement>(null)
+  const endButton = useRef<HTMLButtonElement>(null)
+  const drawWarning = useRef<ReturnType<typeof animate> | null>(null)
+  const [drawRejectedFor, setDrawRejectedFor] = useState<Battle | null>(null)
+  const drawRejected = drawRejectedFor === battle
+  const mustDraw = requiresDraw(battle)
+  useEffect(() => {
+    return () => {
+      drawWarning.current?.revert()
+      drawWarning.current = null
+    }
+  }, [battle, settling])
+  function endTurn() {
+    if (!mustDraw) { props.onEnd(); return }
+    const button = endButton.current
+    if (!button) return
+    drawWarning.current?.revert()
+    setDrawRejectedFor(battle)
+    const style = getComputedStyle(button)
+    const background = style.backgroundColor, color = style.color
+    drawWarning.current = animate(button, {
+      translateX: matchMedia('(prefers-reduced-motion: reduce)').matches ? [0, 0] : [0, -18, 18, -16, 16, -12, 12, -6, 6, 0],
+      backgroundColor: [background, '#c84d3d', '#c84d3d', background],
+      color: [color, '#fff2e9', '#fff2e9', color],
+      duration: 700, ease: 'linear',
+      onComplete: () => {
+        drawWarning.current?.revert()
+        drawWarning.current = null
+        setDrawRejectedFor(null)
+      },
+    })
+  }
   const [cameraStop, setCameraStop] = useState(1)
   const cardWidth = Math.max(128, Math.min(210, (size.width - 98) / 5))
   const worldWidth = 5 * cardWidth + 98
@@ -148,7 +179,7 @@ export function BattleView(props: Props) {
         <button disabled={settling || !!battle.summon || !battle.canDraw || !battle.deck.length || battle.status !== 'playing'} onClick={() => props.onDraw('deck')}>主牌堆 <strong>{battle.deck.length}</strong><small>抽取生物</small></button>
         <button disabled={settling || !!battle.summon || !battle.canDraw || !battle.squirrelDeck.length || battle.status !== 'playing'} onClick={() => props.onDraw('squirrelDeck')}>松鼠牌堆 <strong>{battle.squirrelDeck.length}</strong><small>0 费 · 0 攻 / 1 血</small></button>
       </div>
-      <button className="primary combat-end" disabled={settling || locked || battle.status !== 'playing'} onClick={props.onEnd}>{settling ? '行动中…' : locked ? '请先完成部署' : '结束回合'} <span>→</span></button>
+      <button ref={endButton} className={`primary combat-end ${drawRejected ? 'draw-rejected' : ''}`} disabled={settling || locked || battle.status !== 'playing'} onClick={endTurn}>{settling ? '行动中…' : locked ? '请先完成部署' : drawRejected ? '请先抽牌' : '结束回合'} <span>→</span></button>
     </aside>
 
     <BattleHand cards={battle.hand} selected={selected} available={availableSacrifices}

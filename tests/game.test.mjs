@@ -1,11 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { rulesDeck } from './fixtures/deck.mjs'
-import { getIntents, getRewards, sacrificePoints, initialDeck, makeCard, makeSquirrel, selectSummon, markSacrifice, drawCard, startBattle, deploy, planRound, resolveRound, transfer, load } from '../src/domain/game.ts'
+import { getIntents, getRewards, sacrificePoints, initialDeck, makeCard, makeSquirrel, selectSummon, markSacrifice, drawCard, requiresDraw, startBattle, deploy, planRound, resolveRound, transfer, load } from '../src/domain/game.ts'
 
 const unit = (index, id, patch = {}) => { const card = makeCard(index, id); return { ...card, hp: card.health, ...patch } }
-// Combat fixtures use a known hand independently of seeded shuffle order.
-const quietBattle = () => ({ ...startBattle(rulesDeck(), 1, 123), hand: [...rulesDeck().slice(0, 5), makeSquirrel('squirrel-0')], deck: rulesDeck().slice(5), intents: [] })
+// Combat fixtures start after drawing, with a known hand independent of shuffle order.
+const quietBattle = () => ({ ...startBattle(rulesDeck(), 1, 123), hand: [...rulesDeck().slice(0, 5), makeSquirrel('squirrel-0')], deck: rulesDeck().slice(5), intents: [], canDraw: false })
 
 test('free squirrel deployment removes the hand card and rejects occupied or invalid slots', () => {
   const start = selectSummon(startBattle(rulesDeck()), 'squirrel-0')
@@ -40,7 +40,7 @@ test('rear fox advances only at the next round start and cannot attack early', (
   const s = quietBattle(); s.player[1][0] = unit(5, 'fox')
   const next = resolveRound(s); assert.equal(next.player[0][0].id, 'fox'); assert.equal(next.player[1][0], null); assert.equal(next.balance, 0)
   next.intents = []
-  assert.equal(resolveRound(next).balance, 2)
+  assert.equal(resolveRound(drawCard(next, 'squirrelDeck')).balance, 2)
 })
 
 test('all rear species on both sides advance at round start, preserving damage and sigils', () => {
@@ -302,7 +302,7 @@ test('sacrifice triggers death/rebirth but not thorns or killed causes', () => {
 })
 
 test('squirrel pile is separate and both piles share one draw per round', () => {
-  const s = quietBattle(), original = structuredClone(s)
+  const s = { ...quietBattle(), canDraw: true }, original = structuredClone(s)
   assert.equal(s.hand.length, 6); assert.equal(s.squirrelDeck.length, 9)
   assert.deepEqual(s.hand.at(-1), makeSquirrel('squirrel-0'))
   const squirrelDraw = drawCard(s, 'squirrelDeck')
@@ -322,13 +322,31 @@ test('squirrel pile is separate and both piles share one draw per round', () => 
 })
 
 test('empty pile cannot consume a draw; fatigue requires both piles empty', () => {
-  const s = quietBattle(); s.deck = []
+  const s = quietBattle(); s.canDraw = true; s.deck = []
   assert.equal(drawCard(s, 'deck'), s)
-  assert.equal(resolveRound(s).balance, 0)
+  assert.equal(resolveRound(s), s, 'remaining squirrel pile still requires drawing')
   assert.equal(drawCard(s, 'squirrelDeck').canDraw, false)
   s.squirrelDeck = []
   const next = resolveRound(s)
   assert.equal(next.balance, -1); assert.equal(next.canDraw, false)
+})
+
+test('every round requires a draw from either available pile before combat can resolve', () => {
+  for (const pile of ['deck', 'squirrelDeck']) {
+    const s = { ...quietBattle(), canDraw: true }
+    s.player[0][0] = unit(0, 'wolf')
+    const before = structuredClone(s)
+    assert.equal(requiresDraw(s), true)
+    assert.equal(resolveRound(s), s)
+    assert.deepEqual(planRound(s), { frames: [], state: s })
+    assert.deepEqual(s, before, 'blocked turn does not mutate combat or consume a card')
+    const drawn = drawCard(s, pile)
+    assert.equal(requiresDraw(drawn), false)
+    const next = resolveRound(drawn)
+    assert.equal(next.round, 2)
+    assert.equal(requiresDraw(next), true)
+    assert.equal(resolveRound(next), next, 'drawing is required again next round')
+  }
 })
 
 test('free selection can cancel, cannot sacrifice, and unfinished marks clear on ending turn', () => {
@@ -447,12 +465,12 @@ test('enemy generation and actual deployment are capped at one, including rebirt
   assert.equal(plan.frames.filter(f => f.action.kind === 'deploy').length, 1)
   assert.equal(plan.state.intents.length, 1)
   assert.equal(plan.state.intents[0].card.id, 'reborn')
-  const second = planRound(plan.state)
+  const second = planRound(drawCard(plan.state, 'squirrelDeck'))
   assert.equal(second.frames.filter(f => f.action.kind === 'deploy').length, 1)
 })
 
 test('map seed controls independent enemy lanes and stable unique rewards', () => {
-  const s = startBattle(rulesDeck(), 1, 123)
+  const s = drawCard(startBattle(rulesDeck(), 1, 123), 'deck')
   assert.deepEqual(planRound(s), planRound(s))
   assert.equal(planRound(s).state.mapSeed, 123)
   const rewards = getRewards(123, 1)
