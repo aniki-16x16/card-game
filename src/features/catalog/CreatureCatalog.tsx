@@ -1,9 +1,9 @@
-import { SigilIcon } from './SigilIcon'
+import { SigilIcon } from '../../components/cards/SigilIcon'
 import { useState } from 'react'
-import { CardFace } from './Cards'
-import { allCreatures, allTokens, SIGILS, TRIBES, sigils } from './game'
-import type { Tribe } from './game'
-import './App.css'
+import { CardFace } from '../../components/cards/Cards'
+import { allCreatures, allTokens, SIGILS, TRIBES, sigils } from '../../domain/game'
+import type { Tribe } from '../../domain/game'
+import '../../app/App.css'
 import './CreatureCatalog.css'
 
 export function CreatureCatalog() {

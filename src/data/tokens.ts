@@ -1,0 +1,11 @@
+import type { Card, TokenKind } from './types.ts'
+
+// 仅由印记效果生成，不进入基础卡池或奖励池。
+export const tokenTemplates: Record<TokenKind, Omit<Card, 'id' | 'added'>> = {
+  youngRabbit: {species: 'youngRabbit', name: '幼兔', tribe: 'beast', art: 'rabbit', attack: 0, health: 1, native: [], cost: 0, capacity: 3, token: true},
+  larva: {species: 'larva', name: '幼虫', tribe: 'insect', art: 'caterpillar', attack: 0, health: 1, native: [], cost: 0, capacity: 3, token: true},
+  egg: {species: 'egg', name: '蛋', tribe: 'bird', art: 'egg', attack: 0, health: 1, native: [], cost: 0, capacity: 3, token: true},
+  butterfly: {species: 'butterfly', name: '蝶', tribe: 'insect', art: 'moth', attack: 3, health: 3, native: ['flying'], cost: 0, capacity: 3, token: true},
+  bee: {species: 'bee', name: '蜂', tribe: 'insect', art: 'bee', attack: 1, health: 1, native: ['flying', 'shortlived'], cost: 0, capacity: 3, token: true},
+  tailToken: {species: 'tailToken', name: '尾巴', tribe: 'reptile', art: 'snake', attack: 0, health: 1, native: [], cost: 0, capacity: 3, token: true},
+}

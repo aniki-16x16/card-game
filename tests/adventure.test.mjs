@@ -1,8 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { generateMap, newAdventure, availableNodes, enterNode, finishNode, currentNode, categoryOptions, chooseCategory, visitRewards, takeReward, removeCard, upgradeCard, upgradeRisk, transferAtNode, recordBattle, isCombat } from '../src/adventure.ts'
-import { creature, initialDeck, startBattle, getIntents, resolveRound } from '../src/game.ts'
-import { BattleEngine } from '../src/battleEngine.ts'
+import { generateMap, newAdventure, availableNodes, enterNode, finishNode, currentNode, categoryOptions, chooseCategory, visitRewards, takeReward, removeCard, upgradeCard, upgradeRisk, transferAtNode, recordBattle, isCombat } from '../src/domain/adventure.ts'
+import { creature, initialDeck, startBattle, getIntents, resolveRound } from '../src/domain/game.ts'
+import { BattleEngine } from '../src/domain/battleEngine.ts'
 
 function event(kind, seed=1, deck=initialDeck()) {
   const run={...newAdventure(seed),deck,nodes:[{id:'test',floor:1,x:.5,kind,next:[]}]}

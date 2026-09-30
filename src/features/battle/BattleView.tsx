@@ -1,8 +1,8 @@
-import { sacrificePoints } from './game'
-import type { Battle, Card, DrawPile, Unit } from './game'
+import { sacrificePoints } from '../../domain/game'
+import type { Battle, Card, DrawPile, Unit } from '../../domain/game'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { CardFace } from './Cards'
+import { CardFace } from '../../components/cards/Cards'
 
 type Props = {
   actionLabel: string

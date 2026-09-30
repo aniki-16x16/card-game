@@ -1,5 +1,5 @@
-import { creature, makeToken, sigils } from './cardData.ts'
-import type { Card, Sigil, TokenKind } from './cardData.ts'
+import { creature, makeToken, sigils } from './cards.ts'
+import type { Card, Sigil, TokenKind } from './cards.ts'
 import type { Battle, BattleAction, DeathCause, Recorder, Unit } from './game.ts'
 
 type Side = 'player' | 'enemy'

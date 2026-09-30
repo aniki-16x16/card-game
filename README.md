@@ -65,18 +65,33 @@ npm run lint
 
 ## 文件
 
-- `src/random.ts`：地图种子、确定性随机数生成器与洗牌工具。
-- `src/game.ts`：卡牌模板、印记权重、战斗状态及纯规则函数。调整数值从此处开始。
-- `src/App.tsx`：冒险与战斗切换、串行动画、结算和规则手册。
-- `src/adventure.ts`：地图生成、节点状态机、选牌、风险强化及隐藏效果。
-- `src/AdventureView.tsx`：分叉地图和节点交互。
-- `src/BattleView.tsx`、`src/BattleView.css`：全屏战斗布局与操作。
-- `src/BattleCamera.css`：战场镜头、统一卡牌比例和等比卡面排版。
-- `src/battleAnimation.tsx`、`src/BattleAnimation.css`：Web Animations API 动作播放与卡牌飞行层。
-- `src/Cards.tsx`：共享卡面和右键查看入口。
-- `src/Creature.tsx`：原创 SVG 生物徽记。
-- `src/App.css`：页面和响应式样式。
-- `tests/game.test.mjs`：容量覆盖、重复转移、战斗站位、归魂、胜负与疲劳测试。
+```text
+src/
+  main.tsx                 # 挂载入口及 /creatures 路由
+  app/                     # 应用编排、弹窗和全局样式
+  data/                    # 手动维护的卡牌库、印记和初始卡组
+  domain/                  # 卡牌实例、战斗结算、冒险规则和随机数
+  components/
+    cards/                 # 共享卡面和印记图标
+    creatures/             # SVG 生物徽记、美术变体和样式
+  features/
+    adventure/             # 冒险地图和节点交互
+    battle/                # 战斗界面、镜头和动作动画
+    catalog/               # 生物图鉴
+  assets/                  # 静态资源
+tests/                     # 战斗、印记、冒险和随机数规则测试
+docs/                      # 玩法说明
+```
+
+调整卡牌数值从 [`src/data/cards.ts`](src/data/cards.ts) 开始；调整初始主牌组修改 [`src/data/starterDeck.ts`](src/data/starterDeck.ts)。初始卡组按 `species` 指定卡牌，每一项是一张牌，可重复添加，不依赖卡池数组下标。字段说明和添加卡牌的步骤见 [数据维护说明](src/data/README.md)。
+
+- `src/data/sigils.ts`：印记名称、外来印记权重和展示说明。
+- `src/data/tokens.ts`：仅由效果生成的衍生物。
+- `src/domain/cards.ts`：从数据创建独立卡牌实例，提供图鉴、印记和容量查询。
+- `src/domain/game.ts`、`src/domain/battleEngine.ts`：战斗状态、回合、部署、抽牌、献祭、奖励和效果结算。
+- `src/domain/adventure.ts`：地图生成、节点状态机、选牌、风险强化及隐藏效果。
+- `src/domain/random.ts`：地图种子、确定性随机数生成器与洗牌工具。
+- `src/app/App.tsx`：冒险与战斗切换、串行动画编排、结算和规则手册。
 
 
 ## 生物图鉴
@@ -99,4 +114,4 @@ npm run lint
 - 繁育、成长按每次登场触发一次；蜕变在存活两个新回合后触发。蛋先孵化为雏鸟，再等一个新回合成长。变形保留其他印记，归魂恢复本次登场时的卡牌形态，清除本次登场的强化和触发记录。
 - 所有新增印记都可在工坊转移，强组合被保留，包括飞行＋分袭、剧毒＋分袭、归魂＋短命、归魂＋搬运、永续祭品＋丰饶祭品。
 
-代码按职责分为 `src/cardData.ts`（卡池与说明）、`src/battleEngine.ts`（单次结算及触发）、`src/game.ts`（回合、部署、抽牌、献祭和奖励入口）。战斗动画使用相同结算生成的状态快照。
+卡池与说明集中在 `src/data/`，单次结算及触发位于 `src/domain/battleEngine.ts`，回合、部署、抽牌、献祭和奖励入口位于 `src/domain/game.ts`。战斗动画使用相同结算生成的状态快照。

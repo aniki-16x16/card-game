@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Swords, Skull, Crown, Dices, PawPrint, Scissors, Flame, GitMerge, Gift, Check, LockKeyhole, Map, ArrowRight } from 'lucide-react'
-import { CardFace } from './Cards'
-import { SigilIcon } from './SigilIcon'
-import { SIGILS, TRIBES, sigils, transfer } from './game'
-import type { Card, Sigil } from './game'
-import { availableNodes, currentNode, NODE_NAMES, categoryOptions, chooseCategory, visitRewards, takeReward, removeCard, upgradeCard, upgradeRisk, transferAtNode, finishNode, isCombat } from './adventure'
-import type { Adventure, NodeKind } from './adventure'
+import { CardFace } from '../../components/cards/Cards'
+import { SigilIcon } from '../../components/cards/SigilIcon'
+import { SIGILS, TRIBES, sigils, transfer } from '../../domain/game'
+import type { Card, Sigil } from '../../domain/game'
+import { availableNodes, currentNode, NODE_NAMES, categoryOptions, chooseCategory, visitRewards, takeReward, removeCard, upgradeCard, upgradeRisk, transferAtNode, finishNode, isCombat } from '../../domain/adventure'
+import type { Adventure, NodeKind } from '../../domain/adventure'
 import './Adventure.css'
 
 const icons = { cost: Dices, tribe: PawPrint, remove: Scissors, upgrade: Flame, transfer: GitMerge, item: Gift, battle: Swords, elite: Skull, boss: Crown }

@@ -1,6 +1,6 @@
 import { initialDeck, transfer, getRewards } from './game.ts'
-import { templates, makeCard, TRIBES } from './cardData.ts'
-import type { Card, Sigil, Tribe } from './cardData.ts'
+import { templates, makeCard, TRIBES } from './cards.ts'
+import type { Card, Sigil, Tribe } from './cards.ts'
 import { createRandom, deriveSeed, MAP_SEED } from './random.ts'
 
 export type NodeKind = 'cost' | 'tribe' | 'remove' | 'upgrade' | 'item' | 'transfer' | 'battle' | 'elite' | 'boss'

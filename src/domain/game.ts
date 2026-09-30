@@ -1,8 +1,9 @@
 import { MAP_SEED, createRandom, deriveSeed } from './random.ts'
-import { templates, makeCard, makeSquirrel, sigils, load } from './cardData.ts'
-import type { Card, Sigil } from './cardData.ts'
+import { templates, makeCard, creature, makeSquirrel, sigils, load } from './cards.ts'
+import type { Card, Sigil } from './cards.ts'
+import { STARTER_DECK } from '../data/starterDeck.ts'
 import { BattleEngine } from './battleEngine.ts'
-export * from './cardData.ts'
+export * from './cards.ts'
 export type Unit = Card & { hp: number; age?: number; used?: Sigil[]; base?: Card }
 export type Board = (Unit | null)[][]
 export type Intent = { card: Card; row: number; col: number }
@@ -10,7 +11,7 @@ export type Summon = { cardId: string; sacrifices: string[]; paid: boolean }
 export type DrawPile = 'deck' | 'squirrelDeck'
 export type DeathCause = 'killed' | 'sacrificed' | 'expired'
 export type Battle = { mapSeed: number; nextId: number; round: number; balance: number; difficulty: 'normal' | 'elite' | 'boss'; player: Board; enemy: Board; hand: Card[]; deck: Card[]; squirrelDeck: Card[]; canDraw: boolean; summon: Summon | null; intents: Intent[]; log: string[]; status: 'playing' | 'won' | 'lost'; fatigue: number; encounter: number }
-export function initialDeck(): Card[] { return [0, 3, 2, 1, 5, 4, 7, 6, 10, 3, 11, 29, 8, 9].map((t, i) => makeCard(t, `starter-${i}`)) }
+export function initialDeck(): Card[] { return STARTER_DECK.map((species, i) => creature(species, `starter-${i}`)) }
 export const emptyBoard = (): Board => [Array(5).fill(null), Array(5).fill(null)]
 export function transfer(deck: Card[], donorId: string, targetId: string, sigil: Sigil, remove: Sigil[] = []): { deck: Card[]; error?: string } {
   const donor = deck.find(c => c.id === donorId), target = deck.find(c => c.id === targetId)

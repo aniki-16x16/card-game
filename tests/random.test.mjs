@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createRandom, deriveSeed } from '../src/random.ts'
+import { createRandom, deriveSeed } from '../src/domain/random.ts'
 
 test('seeded sequences repeat, stay bounded, and zero is a valid seed', () => {
   for (const seed of [0, 1, 123, 4294967295]) {

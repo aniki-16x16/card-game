@@ -1,7 +1,7 @@
 import { ArrowUpRight, Shield, Sparkles, Shrub, Split, RotateCcw, Droplets, Infinity as InfinityIcon, Feather, Rabbit, Crosshair, PawPrint, Bone, Sprout, Egg, ArrowDownToLine, MoveHorizontal, Hourglass, Package, Shell, Swords, Bug, Skull, Scissors, EyeOff, Utensils, ScanEye, Webhook, Bird, EggOff } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import type { Sigil } from './game'
-import './creatureVisuals.css'
+import type { Sigil } from '../../domain/game'
+import '../creatures/creatureVisuals.css'
 
 const icons: Record<Sigil, LucideIcon> = {
   ranged: ArrowUpRight, armor: Shield, support: Sparkles, thorns: Shrub,

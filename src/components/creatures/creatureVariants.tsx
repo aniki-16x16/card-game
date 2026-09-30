@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { Species } from './game'
+import type { Species } from '../../domain/game'
 
 // Stable, authored palettes: artwork must never depend on the battle seed or card ID.
 export const palettes: Record<Species, [string, string]> = {

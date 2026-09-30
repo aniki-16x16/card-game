@@ -1,0 +1,57 @@
+# 卡牌数据维护
+
+这里集中存放可手动编辑的数据，卡牌实例的创建和战斗规则位于 `../domain/`。
+
+| 文件 | 用途 |
+| --- | --- |
+| `cards.ts` | 基础卡牌库，供图鉴、初始卡组、奖励和敌方选牌使用 |
+| `starterDeck.ts` | 初始主牌组，每一项代表一张卡牌 |
+| `sigils.ts` | 印记名称、外来印记容量权重和展示说明 |
+| `tokens.ts` | 效果生成的幼兔、幼虫、蛋、蝶、蜂和尾巴 |
+| `types.ts` | 卡牌字段类型、种族名称、卡牌和印记标识 |
+
+## 修改卡牌
+
+在 `cards.ts` 的 `templates` 中找到对应生物，修改属性后保存即可。
+
+| 字段 | 含义 |
+| --- | --- |
+| `species` | 稳定标识，例如 `wolf`；初始卡组、部分效果和美术使用它 |
+| `name` | 显示名称 |
+| `tribe` | 种族标识，中文名称定义在 `types.ts` 的 `TRIBES` 中 |
+| `cost` | 献祭费用 |
+| `attack` / `health` | 基础攻击 / 生命 |
+| `native` | 天生印记标识数组，名称和说明见 `sigils.ts` |
+| `art` | 生物徽记的基础造型，可复用已有造型 |
+| `capacity` | 外来印记容量上限，按 `sigils.ts` 中的 `weight` 计算 |
+
+不在模板中填写实例 `id`、外来印记 `added` 或战斗生命 `hp`，这些由运行时创建。重复卡牌实例会各自复制印记数组，局内强化不会修改这里的模板。
+
+修改印记的 `description` 只影响展示文字；实际行为在 `../domain/battleEngine.ts` 和 `../domain/game.ts` 中实现，修改规则时需同步说明。
+
+## 修改初始卡组
+
+编辑 `starterDeck.ts` 中的 `STARTER_DECK`，使用 `cards.ts` 中的 `species`：
+
+```ts
+export const STARTER_DECK: Species[] = [
+  'wolf',
+  'beetle',
+  'beetle', // 同一生物可以出现多次
+  // 继续添加其他主牌……
+]
+```
+
+增删一项就是增删一张主牌，不需要维护数组下标。调整卡牌库顺序不会改变初始卡组的生物组成。当前初始主牌组为 14 张，初始抽取其中 5 张；删牌和转移节点要求至少保留 6 张，调整时请兼顾这些玩法约束。
+
+独立松鼠牌堆及起手松鼠在 `../domain/game.ts` 的 `startBattle()` 中创建，不属于这个主牌组。修改松鼠属性仍在 `cards.ts` 中进行。
+
+## 添加基础卡牌
+
+1. 在 `types.ts` 的 `Species` 中添加一个唯一标识。
+2. 在 `cards.ts` 的 `templates` 中添加完整模板，`species` 使用同一标识。已有卡牌的标识也被部分效果使用，改名时需要同步这些引用。
+3. 复用一个已有 `art`；若要绘制专属变体，编辑 `../components/creatures/creatureVariants.tsx`。新增基础造型还需修改 `Art` 类型和 `Creature.tsx`。
+4. 需要作为初始卡牌时，在 `starterDeck.ts` 中添加该 `species`。
+5. 同步 `../../docs/card-pool.md` 和项目 README 中的清单与统计。运行 `npm test`、`npm run build` 和 `npm run lint`；现有卡池测试包含固定总数、种族数及费用分布，扩充卡池时需同步这些预期。
+
+新增基础牌会进入图鉴，并按现有筛选规则参与奖励和敌方选牌；松鼠被奖励和敌方卡池排除，蝰蛇也被敌方卡池排除。仅由效果生成的衍生物请放入 `tokens.ts`，不要放进基础卡池。

@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
-import { CardFace } from './Cards'
-import type { BattleAction, Battle } from './game'
+import { CardFace } from '../../components/cards/Cards'
+import type { BattleAction, Battle } from '../../domain/game'
 
 const find = (id?: string) => id ? document.querySelector<HTMLElement>(`[data-motion="${CSS.escape(id)}"]`) : null
 

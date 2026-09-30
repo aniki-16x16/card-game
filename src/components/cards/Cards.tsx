@@ -1,8 +1,8 @@
 import { Heart, Swords } from 'lucide-react'
 import { SigilIcon } from './SigilIcon'
-import { Creature } from './Creature'
-import { SIGILS, TRIBES, sigils } from './game'
-import type { Card, Unit } from './game'
+import { Creature } from '../creatures/Creature'
+import { SIGILS, TRIBES, sigils } from '../../domain/game'
+import type { Card, Unit } from '../../domain/game'
 
 export function CardFace({ card, compact = false, onInspect }: { card: Card | Unit; compact?: boolean; onInspect?: (card: Card | Unit) => void }) {
   return <div onContextMenu={event => { if (onInspect) { event.preventDefault(); event.stopPropagation(); onInspect(card) } }} className={`card-face ${compact ? 'compact' : ''} tone-${card.species}`}>

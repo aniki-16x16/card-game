@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { Art, Species } from './game'
+import type { Art, Species } from '../../domain/game'
 import { palettes, variants, silhouettes } from './creatureVariants'
 import './creatureVisuals.css'
 export function Creature({ species, art, small = false }: { species: Species; art: Art; small?: boolean }) {
