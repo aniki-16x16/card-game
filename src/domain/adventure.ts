@@ -2,58 +2,17 @@ import { initialDeck, transfer, getRewards } from './game.ts'
 import { templates, makeCard, TRIBES } from './cards.ts'
 import type { Card, Sigil, Tribe } from './cards.ts'
 import { createRandom, deriveSeed, MAP_SEED } from './random.ts'
+import { generateMap } from './mapGenerator.ts'
+export { generateMap } from './mapGenerator.ts'
 
 export type NodeKind = 'cost' | 'tribe' | 'remove' | 'upgrade' | 'item' | 'transfer' | 'battle' | 'elite' | 'boss'
 export const NODE_NAMES: Record<NodeKind, string> = { cost: '费用选牌', tribe: '种族选牌', remove: '删卡', upgrade: '强化', item: '道具', transfer: '转移印记', battle: '战斗', elite: '精英战斗', boss: 'Boss · 荒野之王' }
-export type MapNode = { id: string; floor: number; x: number; kind: NodeKind; next: string[]; bonus?: boolean }
+export type MapNode = { id: string; floor: number; x: number; y?: number; kind: NodeKind; next: string[]; bonus?: boolean }
 export type Visit = { nodeId: string; category?: number | Tribe; targetId?: string; attempts: number; stat: 'attack' | 'health'; done: boolean; message: string }
 export type Adventure = { seed: number; deck: Card[]; nodes: MapNode[]; path: string[]; visit: Visit | null; safeUpgrades: boolean; status: 'playing' | 'won' | 'lost' }
 const combat = (kind: NodeKind) => ['battle', 'elite', 'boss'].includes(kind)
 export { combat as isCombat }
 
-export function generateMap(seed: number): MapNode[] {
-  const rng = createRandom(deriveSeed(seed, 'map'))
-  const nodes: MapNode[] = []
-  const widths = [1,3,5,3,1,3,3,3,1,3,3,3,1,3,3,3,1,1]
-  const battles = [2,4,6,10,12,14,16]
-  for (let floor = 1; floor <= 18; floor++) {
-    const count = widths[floor - 1]
-    for (let i = 0; i < count; i++) {
-      let kind: NodeKind
-      if (floor === 18) kind = 'boss'
-      else if (floor === 17) kind = 'upgrade'
-      else if (battles.includes(floor)) kind = [6,12].includes(floor) && i === 1 ? 'elite' : 'battle'
-      else if (floor === 1) kind = rng.int(2) ? 'cost' : 'tribe'
-      else {
-        // Left routes favour collecting, right routes favour refining; merges let players switch.
-        const pool: NodeKind[] = i === 0 && count > 1 ? ['cost','tribe','tribe'] : i === count - 1 && count > 1 ? ['remove','upgrade','transfer'] : ['cost','tribe','remove','upgrade','transfer']
-        kind = pool[rng.int(pool.length)]
-      }
-      nodes.push({ id: `n${floor}-${i}`, floor, x: count === 1 ? .5 : .12 + i / (count - 1) * .76, kind, next: [] })
-    }
-  }
-  for (let floor = 1; floor < 18; floor++) {
-    const from = nodes.filter(n => n.floor === floor), to = nodes.filter(n => n.floor === floor + 1)
-    for (let i = 0; i < from.length; i++) {
-      const a = from[i]
-      if (from.length === 1) a.next = to.map(n => n.id)
-      else if (to.length === 1) a.next = [to[0].id]
-      else if (from.length === to.length) {
-        a.next = [to[i].id]
-        // A one-way diagonal permits switching without intersecting diagonals.
-        if (i + 1 < to.length && rng.int(2)) a.next.push(to[i + 1].id)
-      } else if (from.length < to.length) {
-        a.next = to.filter((_, j) => Math.round(j * (from.length - 1) / (to.length - 1)) === i).map(n => n.id)
-      } else a.next = [to[Math.round(i * (to.length - 1) / (from.length - 1))].id]
-    }
-  }
-  // Elite rewards are extra, exclusive nodes: ordinary routes cannot enter them from the side.
-  for (const elite of nodes.filter(n => n.kind === 'elite')) {
-    const bonus: MapNode = { id: `${elite.id}-bonus`, floor: elite.floor + .5, x: elite.x, kind: rng.int(2) ? 'upgrade' : 'transfer', next: [...elite.next], bonus: true }
-    elite.next = [bonus.id]; nodes.push(bonus)
-  }
-  return nodes.sort((a,b) => a.floor - b.floor || a.x - b.x)
-}
 export function newAdventure(seed = MAP_SEED): Adventure {
   return { seed, deck: initialDeck(), nodes: generateMap(seed), path: [], visit: null, safeUpgrades: false, status: 'playing' }
 }
