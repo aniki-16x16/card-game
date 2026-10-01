@@ -1,81 +1,359 @@
 /* 牌面统一为 3:4；场上使用桌面投影，手牌与临时牌面沿用原有排版。 */
 /* 牌桌固定在手牌（z-index: 10）下方，结算动画不再改变整个战场的层级。 */
-.camera-field { position: relative; display: flex; flex-direction: column; gap: 0; overflow: visible; z-index: 0; }
-.camera-field .combat-rank {
-  grid-template-columns: 38px repeat(5, var(--lane-width)); gap: 12px;
+.camera-field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: visible;
+  z-index: 0;
 }
-.camera-viewport { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
-.camera-space { position: relative; flex: none; }
-.table-fit { position: absolute; inset: 0; transform-origin: top left; }
-.camera-world { width: var(--world-width); position: absolute; top: 0; left: 0; transform-origin: top left; }
-.table-world { height: var(--world-height); transform-origin: center; transform: perspective(var(--table-perspective)) rotateX(var(--table-angle)); transform-style: preserve-3d; }
-.table-world::before { content: ''; position: absolute; inset: -10px; border-radius: 12px; background: radial-gradient(ellipse at 45% 40%, #304335b0, #1b2c23e0); border: 1px solid #92a27b28; box-shadow: 0 10px 0 #111e17, 0 20px 35px #0005; pointer-events: none; transform: translateZ(-2px); }
-.table-board { width: var(--board-width); }
-.camera-world .combat-side { display: flex; flex-direction: column; gap: 12px; }
-.camera-world .combat-side.player { margin-top: 12px; padding-top: 20px; border-top: 1px solid #b6c78638; }
-.camera-world .combat-rank { flex: none; }
-.camera-world .combat-slot { aspect-ratio: 3 / 4; height: auto; width: var(--lane-width); padding: 0; border: none; box-shadow: inset 0 0 0 1px #8fae6550; }
-.camera-world .combat-side.enemy .combat-slot { box-shadow: inset 0 0 0 1px #a8896755; }
-.camera-world .combat-slot.deployable { outline: 1px dashed #b5d481aa; outline-offset: -1px; }
-.table-world .combat-slot.sacrificable { outline: 2px dashed #cb9379; outline-offset: -2px; }
-.table-world .combat-slot.sacrifice-marked { outline: 3px solid #e3a183; outline-offset: -3px; }
-.camera-world .combat-slot:focus-visible { outline: 2px solid #e0eab3; outline-offset: -3px; }
+.camera-field .combat-rank {
+  grid-template-columns: 38px repeat(5, var(--lane-width));
+  gap: 12px;
+}
+.camera-viewport {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.camera-space {
+  position: relative;
+  flex: none;
+}
+.table-fit {
+  position: absolute;
+  inset: 0;
+  transform-origin: top left;
+}
+.camera-world {
+  width: var(--world-width);
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+}
+.table-world {
+  height: var(--world-height);
+  transform-origin: center;
+  transform: perspective(var(--table-perspective)) rotateX(var(--table-angle));
+  transform-style: preserve-3d;
+}
+.table-world::before {
+  content: "";
+  position: absolute;
+  inset: -10px;
+  border-radius: 12px;
+  background: radial-gradient(ellipse at 45% 40%, #304335b0, #1b2c23e0);
+  border: 1px solid #92a27b28;
+  box-shadow:
+    0 10px 0 #111e17,
+    0 20px 35px #0005;
+  pointer-events: none;
+  transform: translateZ(-2px);
+}
+.table-board {
+  width: var(--board-width);
+}
+.camera-world .combat-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.camera-world .combat-side.player {
+  margin-top: 12px;
+  padding-top: 20px;
+  border-top: 1px solid #b6c78638;
+}
+.camera-world .combat-rank {
+  flex: none;
+}
+.camera-world .combat-slot {
+  aspect-ratio: 3 / 4;
+  height: auto;
+  width: var(--lane-width);
+  padding: 0;
+  border: none;
+  box-shadow: inset 0 0 0 1px #8fae6550;
+}
+.camera-world .combat-side.enemy .combat-slot {
+  box-shadow: inset 0 0 0 1px #a8896755;
+}
+.camera-world .combat-slot.deployable {
+  outline: 1px dashed #b5d481aa;
+  outline-offset: -1px;
+}
+.table-world .combat-slot.sacrificable {
+  outline: 2px dashed #cb9379;
+  outline-offset: -2px;
+}
+.table-world .combat-slot.sacrifice-marked {
+  outline: 3px solid #e3a183;
+  outline-offset: -3px;
+}
+.camera-world .combat-slot:focus-visible {
+  outline: 2px solid #e0eab3;
+  outline-offset: -3px;
+}
 /* 通用按钮按压位移会让 3D 卡槽在按下/松开时改变命中层，卡槽保持原位。 */
-.table-world .combat-slot:not(:disabled):active { transform: none; }
-.camera-world .combat-slot.filled { background: none; }
-.camera-world .combat-slot .card-face, .combat-hand .combat-hand-card .card-face { width: 100%; height: auto; aspect-ratio: 3 / 4; padding: 8%; container-type: inline-size; }
-.camera-world .card-face > .creature, .combat-hand .card-face > .creature { height: auto; position: absolute; width: 86%; left: 7%; top: 18%; margin: 0; }
-.camera-world .card-face .card-top, .combat-hand .card-face .card-top { font-size: 12cqw; gap: 3px; white-space: nowrap; }
-.camera-world .card-face .cost, .combat-hand .card-face .cost { font-size: 14cqw; }
-.camera-world .card-face .cost small, .combat-hand .card-face .cost small { font-size: 8cqw; }
-.camera-world .card-face .card-sigils, .combat-hand .card-face .card-sigils { position: absolute; left: 5%; right: 5%; bottom: 21%; min-height: 0; gap: 5%; }
-.camera-world .card-face .card-sigils > span, .combat-hand .card-face .card-sigils > span { font-size: 16cqw; }
-.camera-world .card-face .card-sigils small, .combat-hand .card-face .card-sigils small { font-size: 10cqw; }
-.camera-world .card-face .card-stats, .combat-hand .card-face .card-stats { bottom: 6%; left: 8%; right: 8%; font-size: 21cqw; }
-.camera-world .card-face .card-stats i, .combat-hand .card-face .card-stats i { font-size: 11cqw; }
-.table-world .card-tribe, .table-world .card-face .cost { display: none; }
-.table-world .card-face.compact .card-top { font-size: 14px; }
-.table-world .card-face.compact > svg.creature { transform: none; top: 20%; }
-.table-world .card-face.compact .card-stats { font-size: 24px; }
-.table-world .card-face.compact .card-sigils { left: 8%; right: 8%; transform: none; bottom: 24%; justify-content: center; }
-.table-world .card-face.compact .card-sigils > span { font-size: 19px; }
-.table-world .sacrifice-badge { font-size: 12px; }
+.table-world .combat-slot:not(:disabled):active {
+  transform: none;
+}
+.camera-world .combat-slot.filled {
+  background: none;
+}
+.camera-world .combat-slot .card-face,
+.combat-hand .combat-hand-card .card-face {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 4;
+  padding: 8%;
+  container-type: inline-size;
+}
+.camera-world .card-face > .creature,
+.combat-hand .card-face > .creature {
+  height: auto;
+  position: absolute;
+  width: 86%;
+  left: 7%;
+  top: 18%;
+  margin: 0;
+}
+.camera-world .card-face .card-top,
+.combat-hand .card-face .card-top {
+  font-size: 12cqw;
+  gap: 3px;
+  white-space: nowrap;
+}
+.camera-world .card-face .cost,
+.combat-hand .card-face .cost {
+  font-size: 14cqw;
+}
+.camera-world .card-face .cost small,
+.combat-hand .card-face .cost small {
+  font-size: 8cqw;
+}
+.camera-world .card-face .card-sigils,
+.combat-hand .card-face .card-sigils {
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  bottom: 21%;
+  min-height: 0;
+  gap: 5%;
+}
+.camera-world .card-face .card-sigils > span,
+.combat-hand .card-face .card-sigils > span {
+  font-size: 16cqw;
+}
+.camera-world .card-face .card-sigils small,
+.combat-hand .card-face .card-sigils small {
+  font-size: 10cqw;
+}
+.camera-world .card-face .card-stats,
+.combat-hand .card-face .card-stats {
+  bottom: 6%;
+  left: 8%;
+  right: 8%;
+  font-size: 21cqw;
+}
+.camera-world .card-face .card-stats i,
+.combat-hand .card-face .card-stats i {
+  font-size: 11cqw;
+}
+.table-world .card-tribe,
+.table-world .card-face .cost {
+  display: none;
+}
+.table-world .card-face.compact .card-top {
+  font-size: 14px;
+}
+.table-world .card-face.compact > svg.creature {
+  transform: none;
+  top: 20%;
+}
+.table-world .card-face.compact .card-stats {
+  font-size: 24px;
+}
+.table-world .card-face.compact .card-sigils {
+  left: 8%;
+  right: 8%;
+  transform: none;
+  bottom: 24%;
+  justify-content: center;
+}
+.table-world .card-face.compact .card-sigils > span {
+  font-size: 19px;
+}
+.table-world .sacrifice-badge {
+  font-size: 12px;
+}
 /* 两摞牌堆与卡槽使用同一桌面投影，卡背与错开的底牌表现厚度。 */
-.table-decks { position: absolute; left: calc(var(--board-width) + 24px); bottom: 20px; display: grid; gap: 24px; transform-style: preserve-3d; }
-.table-deck { position: relative; width: 80px; aspect-ratio: 3 / 4; padding: 0; background: none; border-radius: 6px; transform-style: preserve-3d; }
-.table-deck::before, .table-deck::after { content: ''; position: absolute; inset: 0; background: #26392a; border: 1px solid #869969; border-radius: 6px; transform: translate3d(3px,3px,-2px); box-shadow: 0 3px 4px #0005; }
-.table-deck::before { transform: translate3d(6px,6px,-4px); }
-.deck-back { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: space-around; padding: 8px 3px; border: 1px solid #b4c790; border-radius: 6px; background: repeating-linear-gradient(45deg,#31432e 0 6px,#354b3266 6px 7px),#263a2b; color: #d2e2b0; box-shadow: inset 0 0 0 4px #203222; transform: translateZ(1px); }
-.deck-back > span { font-size: 13px; }
-.deck-back > i { font-size: 28px; font-style: normal; line-height: 1; }
-.deck-back > strong { font-size: 22px; font-weight: 500; }
-.squirrel-pile .deck-back { background: repeating-linear-gradient(-45deg,#3b4430 0 6px,#63704b55 6px 7px),#35452e; }
-.table-deck:not(:disabled):hover .deck-back { filter: brightness(1.25); }
-.table-deck:disabled { cursor: default; }
-.table-deck:disabled .deck-back { opacity: .6; }
-.table-world .table-deck:not(:disabled):active { transform: none; }
+.table-decks {
+  position: absolute;
+  left: calc(var(--board-width) + 24px);
+  bottom: 20px;
+  display: grid;
+  gap: 24px;
+  transform-style: preserve-3d;
+}
+.table-deck {
+  position: relative;
+  width: 80px;
+  aspect-ratio: 3 / 4;
+  padding: 0;
+  background: none;
+  border-radius: 6px;
+  transform-style: preserve-3d;
+}
+.table-deck::before,
+.table-deck::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #26392a;
+  border: 1px solid #869969;
+  border-radius: 6px;
+  transform: translate3d(3px, 3px, -2px);
+  box-shadow: 0 3px 4px #0005;
+}
+.table-deck::before {
+  transform: translate3d(6px, 6px, -4px);
+}
+.deck-back {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-around;
+  padding: 8px 3px;
+  border: 1px solid #b4c790;
+  border-radius: 6px;
+  background: repeating-linear-gradient(45deg, #31432e 0 6px, #354b3266 6px 7px), #263a2b;
+  color: #d2e2b0;
+  box-shadow: inset 0 0 0 4px #203222;
+  transform: translateZ(1px);
+}
+.deck-back > span {
+  font-size: 13px;
+}
+.deck-back > i {
+  font-size: 28px;
+  font-style: normal;
+  line-height: 1;
+}
+.deck-back > strong {
+  font-size: 22px;
+  font-weight: 500;
+}
+.squirrel-pile .deck-back {
+  background: repeating-linear-gradient(-45deg, #3b4430 0 6px, #63704b55 6px 7px), #35452e;
+}
+.table-deck:not(:disabled):hover .deck-back {
+  filter: brightness(1.25);
+}
+.table-deck:disabled {
+  cursor: default;
+}
+.table-deck:disabled .deck-back {
+  opacity: 0.6;
+}
+.table-world .table-deck:not(:disabled):active {
+  transform: none;
+}
 /* 矮屏也按可用高度适配桌面，避免页面最小高度重新引入滚动。 */
-.battle-mode main { min-height: 0; overflow: clip; }
-.combat-screen { grid-template-columns: 120px minmax(0,1fr) 130px; grid-template-rows: minmax(0,1fr) 170px; gap: 12px 18px; }
-.combat-end { margin-top: auto; }
+.battle-mode main {
+  min-height: 0;
+  overflow: clip;
+}
+.combat-screen {
+  grid-template-columns: 120px minmax(0, 1fr) 130px;
+  grid-template-rows: minmax(0, 1fr) 170px;
+  gap: 12px 18px;
+}
+.combat-end {
+  margin-top: auto;
+}
 @media (max-width: 760px) {
-  .battle-mode main { height: 100dvh; min-height: 0; padding: 8px; }
-  .combat-screen { grid-template-columns: minmax(0,1fr) minmax(0,1fr); grid-template-rows: auto minmax(0,1fr) 155px; gap: 8px; }
-  .combat-rail { grid-row: 1; padding: 0; gap: 5px; }
-  .left-rail { grid-column: 1; }
-  .right-rail { grid-column: 2; align-items: flex-end; }
-  .combat-field { grid-column: 1 / -1; grid-row: 2; }
-  .combat-hand { grid-column: 1 / -1; grid-row: 3; }
-  .combat-round { position: static; transform: none; align-items: flex-start; margin: 0; }
-  .combat-scale { margin: 0; width: 130px; }
-  .balance-ruler { margin-block: 4px; }
-  .rail-menu { margin-top: 0; gap: 6px; flex-wrap: wrap; }
-  .rail-menu a, .rail-menu button { font-size: 11px; }
-  .rail-forge { width: auto; font-size: 12px; padding: 6px 8px; }
-  .combat-end { margin-top: 0; width: auto; padding: 8px 12px; font-size: 13px; }
-  .combat-instruction { min-height: 0; font-size: 12px; }
-  .table-world .rank-label, .table-world .rank-label b { font-size: 16px; }
+  .battle-mode main {
+    height: 100dvh;
+    min-height: 0;
+    padding: 8px;
+  }
+  .combat-screen {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) 155px;
+    gap: 8px;
+  }
+  .combat-rail {
+    grid-row: 1;
+    padding: 0;
+    gap: 5px;
+  }
+  .left-rail {
+    grid-column: 1;
+  }
+  .right-rail {
+    grid-column: 2;
+    align-items: flex-end;
+  }
+  .combat-field {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .combat-hand {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+  .combat-round {
+    position: static;
+    transform: none;
+    align-items: flex-start;
+    margin: 0;
+  }
+  .combat-scale {
+    margin: 0;
+    width: 130px;
+  }
+  .balance-ruler {
+    margin-block: 4px;
+  }
+  .rail-menu {
+    margin-top: 0;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .rail-menu a,
+  .rail-menu button {
+    font-size: 11px;
+  }
+  .rail-forge {
+    width: auto;
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+  .combat-end {
+    margin-top: 0;
+    width: auto;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  .combat-instruction {
+    min-height: 0;
+    font-size: 12px;
+  }
+  .table-world .rank-label,
+  .table-world .rank-label b {
+    font-size: 16px;
+  }
 }
 
-.combat-hand { scrollbar-width: none; }
-.combat-hand::-webkit-scrollbar { display: none; }
+.combat-hand {
+  scrollbar-width: none;
+}
+.combat-hand::-webkit-scrollbar {
+  display: none;
+}

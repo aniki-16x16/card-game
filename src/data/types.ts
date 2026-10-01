@@ -1,7 +1,145 @@
-export const TRIBES = { beast: '兽类', bird: '鸟类', insect: '虫族', reptile: '爬行类', spider: '蛛类', special: '特殊生物' } as const
-export type Tribe = keyof typeof TRIBES
-export type Art = 'wolf' | 'deer' | 'owl' | 'beetle' | 'moth' | 'fox' | 'bear' | 'heron' | 'goat' | 'experiment' | 'mouse' | 'rabbit' | 'bird' | 'ant' | 'caterpillar' | 'bee' | 'lizard' | 'turtle' | 'snake' | 'spider' | 'squirrel' | 'egg'
-export type Species = 'viper' | 'wolf' | 'deer' | 'owl' | 'beetle' | 'moth' | 'fox' | 'bear' | 'heron' | 'goat' | 'experiment' | 'mouse' | 'rabbit' | 'coyote' | 'greywolf' | 'hyena' | 'boar' | 'hedgehog' | 'bat' | 'fawn' | 'chick' | 'sparrow' | 'crow' | 'vulture' | 'hen' | 'falcon' | 'albatross' | 'eagle' | 'pigeon' | 'quail' | 'ant' | 'firefly' | 'mayfly' | 'worker' | 'caterpillar' | 'mantis' | 'queen' | 'cricket' | 'ladybug' | 'cicada' | 'gecko' | 'turtle' | 'snake' | 'lizard' | 'tortoise' | 'chameleon' | 'python' | 'crocodile' | 'skink' | 'iguana' | 'spiderling' | 'orbweaver' | 'venomspider' | 'wolfspider' | 'squirrel' | 'youngRabbit' | 'larva' | 'egg' | 'butterfly' | 'bee' | 'tailToken'
-export type Sigil = 'ranged' | 'armor' | 'support' | 'thorns' | 'split' | 'rebirth' | 'triple' | 'undying' | 'flying' | 'breed' | 'hunt' | 'pack' | 'scavenge' | 'growth' | 'nest' | 'dive' | 'migrate' | 'shortlived' | 'porter' | 'metamorph' | 'double' | 'swarm' | 'poison' | 'tail' | 'stealth' | 'devour' | 'ambush' | 'web' | 'birdcatcher' | 'brood'
-export type Card = { id: string; name: string; species: Species; tribe: Tribe; art: Art; attack: number; health: number; cost: number; native: Sigil[]; added: Sigil[]; capacity: number; token?: boolean }
-export type TokenKind = 'youngRabbit' | 'larva' | 'egg' | 'butterfly' | 'bee' | 'tailToken'
+export const TRIBES = {
+  beast: "兽类",
+  bird: "鸟类",
+  insect: "虫族",
+  reptile: "爬行类",
+  spider: "蛛类",
+  special: "特殊生物",
+} as const;
+export type Tribe = keyof typeof TRIBES;
+export type Art =
+  | "wolf"
+  | "deer"
+  | "owl"
+  | "beetle"
+  | "moth"
+  | "fox"
+  | "bear"
+  | "heron"
+  | "goat"
+  | "experiment"
+  | "mouse"
+  | "rabbit"
+  | "bird"
+  | "ant"
+  | "caterpillar"
+  | "bee"
+  | "lizard"
+  | "turtle"
+  | "snake"
+  | "spider"
+  | "squirrel"
+  | "egg";
+export type Species =
+  | "viper"
+  | "wolf"
+  | "deer"
+  | "owl"
+  | "beetle"
+  | "moth"
+  | "fox"
+  | "bear"
+  | "heron"
+  | "goat"
+  | "experiment"
+  | "mouse"
+  | "rabbit"
+  | "coyote"
+  | "greywolf"
+  | "hyena"
+  | "boar"
+  | "hedgehog"
+  | "bat"
+  | "fawn"
+  | "chick"
+  | "sparrow"
+  | "crow"
+  | "vulture"
+  | "hen"
+  | "falcon"
+  | "albatross"
+  | "eagle"
+  | "pigeon"
+  | "quail"
+  | "ant"
+  | "firefly"
+  | "mayfly"
+  | "worker"
+  | "caterpillar"
+  | "mantis"
+  | "queen"
+  | "cricket"
+  | "ladybug"
+  | "cicada"
+  | "gecko"
+  | "turtle"
+  | "snake"
+  | "lizard"
+  | "tortoise"
+  | "chameleon"
+  | "python"
+  | "crocodile"
+  | "skink"
+  | "iguana"
+  | "spiderling"
+  | "orbweaver"
+  | "venomspider"
+  | "wolfspider"
+  | "squirrel"
+  | "youngRabbit"
+  | "larva"
+  | "egg"
+  | "butterfly"
+  | "bee"
+  | "tailToken";
+export type Sigil =
+  | "ranged"
+  | "armor"
+  | "support"
+  | "thorns"
+  | "split"
+  | "trisplit"
+  | "rebirth"
+  | "triple"
+  | "undying"
+  | "flying"
+  | "breed"
+  | "hunt"
+  | "leader"
+  | "scavenge"
+  | "growth"
+  | "nest"
+  | "dive"
+  | "migrate"
+  | "shortlived"
+  | "porter"
+  | "metamorph"
+  | "swarm"
+  | "poison"
+  | "tail"
+  | "stealth"
+  | "devour"
+  | "ambush"
+  | "web"
+  | "birdcatcher"
+  | "brood"
+  | "burrow"
+  | "submerge"
+  | "shove"
+  | "reinforce"
+  | "intimidate";
+export type Card = {
+  id: string;
+  name: string;
+  species: Species;
+  tribe: Tribe;
+  art: Art;
+  attack: number;
+  health: number;
+  cost: number;
+  native: Sigil[];
+  added: Sigil[];
+  capacity: number;
+  token?: boolean;
+};
+export type TokenKind = "youngRabbit" | "larva" | "egg" | "butterfly" | "bee" | "tailToken";
