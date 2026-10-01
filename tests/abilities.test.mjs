@@ -35,7 +35,7 @@ test("card pool has 92 distinct cards across 15 populated tribes and all effects
   assert.equal(new Set(cards.map((c) => c.species)).size, 92);
   assert.deepEqual(
     [0, 1, 2, 3].map((n) => cards.filter((c) => c.cost === n).length),
-    [14, 43, 27, 8],
+    [13, 44, 27, 8],
   );
   assert.deepEqual(
     [
@@ -191,7 +191,7 @@ test("poison requires positive damage and poison kills do not manufacture spill 
   s.enemy[0][0] = unit("beetle", "b");
   e.turn("player");
   assert.equal(s.enemy[0][0].hp, 2);
-  s.player[1][0] = unit("firefly", "support");
+  s.player[1][0] = unit("firefly", "support", { native: ["support"] });
   s.enemy[1][0] = unit("bear", "rear");
   e.turn("player");
   assert.equal(s.enemy[0][0], null);

@@ -1,6 +1,35 @@
 import type { Sigil } from "./types.ts";
 
 export const SIGILS: Record<Sigil, { name: string; weight: number; description: string }> = {
+  ember: { name: "余烬", weight: 2, description: "被献祭而死亡时，对同列敌方前排造成 2 点伤害。" },
+  legacy: {
+    name: "托孤",
+    weight: 2,
+    description: "位于前排时，被献祭而死亡使同列友方后排获得 +1/+1。",
+  },
+  rush: { name: "奔袭", weight: 2, description: "移动到其他列后，下次攻击伤害 +2。" },
+  follow: {
+    name: "追随",
+    weight: 1,
+    description: "同排相邻友方移动后，移入其腾出的空位，每回合一次。",
+  },
+  fury: { name: "狂怒", weight: 2, description: "每缺失 1 点生命，攻击力 +1。" },
+  blood: { name: "搏命", weight: 2, description: "发动攻击前失去 1 点生命，本次攻击伤害 +2。" },
+  catalyst: {
+    name: "催生",
+    weight: 2,
+    description: "登场时，使同排相邻友方的成长或蜕变推进一回合。",
+  },
+  seed: { name: "留种", weight: 2, description: "成长或蜕变后，将一张未强化的原形态加入手牌。" },
+  colony: { name: "群势", weight: 2, description: "同排每有另一个同族友方，攻击力 +1。" },
+  relay: {
+    name: "接力",
+    weight: 2,
+    description: "在手牌中时，每有一个同族友方死亡，本卡费用 -1，最低为 0。",
+  },
+  kin: { name: "寻亲", weight: 2, description: "登场时，从主牌库抽取一张同族生物。" },
+  recall: { name: "归巢", weight: 1, description: "行动结束后返回手牌。" },
+  search: { name: "检索", weight: 3, description: "打出时，从主牌库选择一张牌加入手牌。" },
   ranged: { name: "远射", weight: 1, description: "可从后排攻击同列。" },
   armor: { name: "硬甲", weight: 1, description: "受到攻击时，伤害减少 1，最低为 0。" },
   support: { name: "鼓舞", weight: 1, description: "位于后排时，使同列友方前排攻击 +1。" },

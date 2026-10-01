@@ -103,7 +103,10 @@ test("growth preserves upgrades, wounds and inherited sigils; rebirth restores t
     );
     assert.deepEqual(grown.added, ["rebirth", "ranged"]);
     engine.remove("player", 0, 2, "sacrificed");
-    assert.deepEqual(state.hand[0], card);
+    assert.deepEqual(
+      state.hand.find((returned) => returned.id === card.id),
+      card,
+    );
   }
 });
 

@@ -34,12 +34,38 @@ import {
   ArrowRightLeft,
   UserRoundPlus,
   Angry,
+  Flame,
+  Baby,
+  Wind,
+  Footprints,
+  HeartCrack,
+  HeartPulse,
+  Flower2,
+  Wheat,
+  Users,
+  Repeat2,
+  Search,
+  Undo2,
+  BookOpen,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Sigil } from "../../domain/game";
 import "../creatures/creatureVisuals.css";
 
 const icons: Record<Sigil, LucideIcon> = {
+  ember: Flame,
+  legacy: Baby,
+  rush: Wind,
+  follow: Footprints,
+  fury: HeartCrack,
+  blood: HeartPulse,
+  catalyst: Flower2,
+  seed: Wheat,
+  colony: Users,
+  relay: Repeat2,
+  kin: Search,
+  recall: Undo2,
+  search: BookOpen,
   ranged: ArrowUpRight,
   armor: Shield,
   support: Sparkles,

@@ -1,0 +1,37 @@
+.modal.deck-search-dialog {
+  width: min(1000px, calc(100vw - 32px));
+  max-height: 85dvh;
+  padding: 24px;
+}
+.deck-search-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 18px;
+  margin-top: 24px;
+}
+.deck-search-grid > button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  max-width: 220px;
+  border-radius: 8px;
+}
+.deck-search-grid .card-face {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 4;
+}
+.deck-search-grid > button:hover,
+.deck-search-grid > button:focus-visible {
+  outline: 2px solid #c3d695;
+  outline-offset: 4px;
+}
+@media (max-width: 540px) {
+  .deck-search-dialog {
+    padding: 18px;
+  }
+  .deck-search-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+}

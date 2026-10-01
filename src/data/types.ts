@@ -174,7 +174,20 @@ export type Sigil =
   | "submerge"
   | "shove"
   | "reinforce"
-  | "intimidate";
+  | "intimidate"
+  | "ember"
+  | "legacy"
+  | "rush"
+  | "follow"
+  | "fury"
+  | "blood"
+  | "catalyst"
+  | "seed"
+  | "colony"
+  | "relay"
+  | "kin"
+  | "recall"
+  | "search";
 export type Card = {
   id: string;
   name: string;
@@ -188,5 +201,15 @@ export type Card = {
   added: Sigil[];
   capacity: number;
   token?: boolean;
+  costDiscount?: number;
+  returnState?: {
+    hp: number;
+    age: number;
+    used: Sigil[];
+    base?: Card;
+    rush?: boolean;
+    followedRound?: number;
+    pushDirection?: 1 | -1;
+  };
 };
 export type TokenKind = "youngRabbit" | "larva" | "egg" | "butterfly" | "bee" | "tailToken";

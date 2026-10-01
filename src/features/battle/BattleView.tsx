@@ -1,6 +1,6 @@
 import { BalanceScale } from "./BalanceScale";
 import { BattleHand } from "./BattleHand";
-import { attackPower, requiresDraw, sacrificePoints } from "../../domain/game";
+import { attackPower, requiresDraw, sacrificePoints, awaitingSearch } from "../../domain/game";
 import type { Battle, Card, DrawPile, Unit } from "../../domain/game";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
@@ -26,7 +26,8 @@ type Props = {
 };
 
 export function BattleView(props: Props) {
-  const { battle, selected, settling, onInspect } = props;
+  const { battle, selected, onInspect } = props;
+  const settling = props.settling || awaitingSearch(battle);
   const card = battle.hand.find((c) => c.id === selected);
   const choosingSacrifices = !!card && card.cost > 0 && !battle.summon?.paid;
   const choosingSlot = !!card && !choosingSacrifices;
@@ -100,7 +101,13 @@ export function BattleView(props: Props) {
         <div className="combat-round">
           <span>回合</span>
           <strong>{String(battle.round).padStart(2, "0")}</strong>
-          <span>{settling ? "交锋结算中" : "你的部署阶段"}</span>
+          <span>
+            {awaitingSearch(battle) && !props.settling
+              ? "检索选牌"
+              : settling
+                ? "交锋结算中"
+                : "你的部署阶段"}
+          </span>
         </div>
 
         <div className="rail-menu">

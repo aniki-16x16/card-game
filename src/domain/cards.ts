@@ -36,6 +36,18 @@ export function allTokens(): Card[] {
   );
 }
 
+export function originalForm(species: Species, id: string): Card {
+  const token = (Object.keys(tokenTemplates) as TokenKind[]).find(
+    (kind) => tokenTemplates[kind].species === species,
+  );
+  return token ? makeToken(token, id) : creature(species, id);
+}
+
+export function normalCost(card: Card): Card {
+  const { costDiscount = 0, ...base } = card;
+  return { ...base, cost: card.cost + costDiscount };
+}
+
 export function grownForm(card: Card): Card | undefined {
   const targetSpecies = GROWTH_FORMS[card.species];
   if (!targetSpecies) return;

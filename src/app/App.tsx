@@ -7,6 +7,7 @@ import { Creature } from "../components/creatures/Creature";
 import { CardFace } from "../components/cards/Cards";
 import { SigilIcon } from "../components/cards/SigilIcon";
 import { BattleView } from "../features/battle/BattleView";
+import { DeckSearch } from "../features/battle/DeckSearch";
 import { AdventureView, MapView } from "../features/adventure/AdventureView";
 import {
   newAdventure,
@@ -20,12 +21,14 @@ import type { Adventure } from "../domain/adventure";
 import {
   SIGILS,
   attackPower,
+  intrinsicAttack,
   planDeploy,
   drawCard,
   markSacrifice,
   selectSummon,
   load,
   planRound,
+  planSearch,
   sigils,
   sigilDescription,
   startBattle,
@@ -175,8 +178,11 @@ export default function App() {
       }
     }
   }
-  const detailHp = inspected && "hp" in inspected ? inspected.hp : inspected?.health;
-  let detailAttack = inspected?.attack;
+  const detailHp =
+    inspected && "hp" in inspected
+      ? inspected.hp
+      : (inspected?.returnState?.hp ?? inspected?.health);
+  let detailAttack = inspected ? intrinsicAttack(inspected) : undefined;
   if (battle && inspected && "hp" in inspected)
     for (const side of ["player", "enemy"] as const)
       for (let row = 0; row < 2; row++)
@@ -267,6 +273,16 @@ export default function App() {
             </button>
           </nav>
         </Modal>
+      )}
+      {battle && !settling && (
+        <DeckSearch
+          battle={battle}
+          onChoose={(id) => {
+            if (playing.current) return;
+            const plan = planSearch(battle, id);
+            if (plan.state !== battle) void play(plan.frames, plan.state);
+          }}
+        />
       )}
       {showDeck && (
         <Modal label="当前牌组" onClose={() => setShowDeck(false)}>

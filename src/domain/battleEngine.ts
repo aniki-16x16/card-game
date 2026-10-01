@@ -1,4 +1,4 @@
-import { creature, grownForm, makeToken, sigils } from "./cards.ts";
+import { creature, grownForm, makeToken, sigils, originalForm, normalCost } from "./cards.ts";
 import type { Card, Sigil, TokenKind } from "./cards.ts";
 import type { Battle, BattleAction, DeathCause, Recorder, Unit } from "./game.ts";
 import { attackPower } from "./combatStats.ts";
@@ -8,15 +8,26 @@ const other = (side: Side): Side => (side === "player" ? "enemy" : "player");
 const has = (card: Card, sigil: Sigil) => sigils(card).includes(sigil);
 const slot = (side: Side, row: number, col: number) => `${side}-${row}-${col}`;
 
+export class SearchPause extends Error {
+  state: Battle;
+  constructor(state: Battle) {
+    super("Choose a card from the deck");
+    this.state = state;
+  }
+}
+
 // Each public operation runs on a cloned battle. No global RNG or event state.
 export class BattleEngine {
   s: Battle;
   record?: Recorder;
+  interactive: boolean;
   private deathDepth = 0;
   private reinforcementChain = new Set<string>();
-  constructor(state: Battle, record?: Recorder) {
+  private movements: { side: Side; row: number; col: number; followers: string[] }[] = [];
+  constructor(state: Battle, record?: Recorder, interactive = false) {
     this.s = state;
     this.record = record;
+    this.interactive = interactive;
   }
   emit(action: BattleAction) {
     this.record?.(action, structuredClone(this.s));
@@ -44,7 +55,7 @@ export class BattleEngine {
   }
   give(side: Side, card: Card, col: number) {
     if (side === "player") this.s.hand.push(card);
-    else this.s.intents.push({ card, row: 0, col });
+    else this.s.intents.push({ card, row: 0, col, costGated: true });
     this.s.log.unshift(`${side === "player" ? "我方获得" : "敌方预备"} ${card.name}。`);
   }
   remove(side: Side, row: number, col: number, cause: DeathCause) {
@@ -58,6 +69,8 @@ export class BattleEngine {
   private removeUnit(side: Side, row: number, col: number, cause: DeathCause) {
     const unit = this.s[side][row][col];
     if (!unit) return;
+    const waiting =
+      side === "player" ? [...this.s.hand] : this.s.intents.map((intent) => intent.card);
     const ready = (card: Card) =>
       card.id !== unit.id &&
       card.health > 0 &&
@@ -74,6 +87,10 @@ export class BattleEngine {
       used: _used,
       submerged: _submerged,
       pushDirection: _direction,
+      rush: _rush,
+      followedRound: _followed,
+      bloodBonus: _blood,
+      returnState: _returned,
       base,
       ...card
     } = unit;
@@ -87,6 +104,28 @@ export class BattleEngine {
       target: slot(side, row, col),
       label: `${unit.name} ${reason}`,
     });
+    for (const card of waiting) {
+      if (card.id === unit.id || !has(card, "relay") || card.tribe !== unit.tribe || card.cost <= 0)
+        continue;
+      card.cost--;
+      card.costDiscount = (card.costDiscount ?? 0) + 1;
+      this.s.log.unshift(`${card.name} 接力，费用降为 ${card.cost}。`);
+      this.emit({
+        kind: "effect",
+        target: side === "player" ? `hand-${card.id}` : slot(side, row, col),
+        label: `${card.name} 接力 · ${card.cost} 费`,
+      });
+    }
+    if (cause === "sacrificed") {
+      const heir = this.s[side][1][col];
+      if (row === 0 && has(unit, "legacy") && heir && heir.hp > 0) {
+        heir.attack++;
+        heir.health++;
+        heir.hp++;
+        this.effect(side, 1, col, `${unit.name} 托孤，${heir.name} 获得 +1/+1。`);
+      }
+      if (has(unit, "ember")) this.effectDamage(other(side), 0, col, 2, `${unit.name} 余烬`);
+    }
     if (cause === "killed") {
       for (const owner of ["player", "enemy"] as const)
         for (let r = 0; r < 2; r++)
@@ -139,6 +178,67 @@ export class BattleEngine {
     const unit = this.s[side][row][col];
     return !!unit && unit.hp > 0 && !unit.submerged;
   }
+  private effectDamage(side: Side, row: number, col: number, amount: number, label: string) {
+    if (!this.targetable(side, row, col)) return;
+    const target = this.s[side][row][col]!;
+    target.hp -= amount;
+    this.s.log.unshift(`${label} → ${target.name}，造成 ${amount} 点伤害。`);
+    this.emit({
+      kind: "hit",
+      target: slot(side, row, col),
+      amount,
+      label: `${label} · ${target.name} −${amount}`,
+    });
+    if (target.hp <= 0) this.remove(side, row, col, "killed");
+  }
+  private move(
+    side: Side,
+    fromRow: number,
+    fromCol: number,
+    row: number,
+    col: number,
+    label: string,
+  ) {
+    const unit = this.s[side][fromRow][fromCol];
+    if (!unit || this.s[side][row][col]) return;
+    const followers = [fromCol - 1, fromCol + 1]
+      .filter((c) => c >= 0 && c < 5)
+      .map((c) => this.s[side][fromRow][c])
+      .filter((ally): ally is Unit => !!ally && ally.hp > 0 && has(ally, "follow"))
+      .map((ally) => ally.id);
+    this.s[side][fromRow][fromCol] = null;
+    this.s[side][row][col] = unit;
+    if (fromCol !== col && has(unit, "rush")) unit.rush = true;
+    this.movements.push({ side, row: fromRow, col: fromCol, followers });
+    this.emit({
+      kind: "advance",
+      source: slot(side, fromRow, fromCol),
+      target: slot(side, row, col),
+      label,
+    });
+  }
+  private followMoves() {
+    while (this.movements.length) {
+      const event = this.movements.shift()!;
+      if (this.s[event.side][event.row][event.col]) continue;
+      for (const id of event.followers) {
+        const from = this.find(event.side, id);
+        if (!from || from[0] !== event.row || Math.abs(from[1] - event.col) !== 1) continue;
+        const unit = this.s[event.side][from[0]][from[1]]!;
+        if (unit.hp <= 0 || unit.submerged || unit.followedRound === this.s.round) continue;
+        unit.followedRound = this.s.round;
+        this.move(
+          event.side,
+          from[0],
+          from[1],
+          event.row,
+          event.col,
+          `${unit.name} 追随至第 ${event.col + 1} 列`,
+        );
+        break;
+      }
+    }
+  }
   private intercept(side: Side, row: number, col: number) {
     // Submerged units still occupy their square, so no other unit may overwrite them.
     if (this.s[side][row][col]) return;
@@ -159,14 +259,8 @@ export class BattleEngine {
     const from = candidates[0];
     if (!from) return;
     const unit = this.s[side][from.row][from.col]!;
-    this.s[side][from.row][from.col] = null;
-    this.s[side][row][col] = unit;
-    this.emit({
-      kind: "advance",
-      source: slot(side, from.row, from.col),
-      target: slot(side, row, col),
-      label: `${unit.name} 挖洞，抵挡第 ${col + 1} 列攻击`,
-    });
+    this.move(side, from.row, from.col, row, col, `${unit.name} 挖洞，抵挡第 ${col + 1} 列攻击`);
+    this.followMoves();
   }
   place(
     card: Card,
@@ -176,18 +270,79 @@ export class BattleEngine {
     source?: string,
     label = `${card.name} 部署`,
   ) {
+    const { returnState, ...fresh } = normalCost(structuredClone(card));
     const unit: Unit = {
-      ...structuredClone(card),
-      hp: card.health,
-      age: 0,
-      used: [],
-      base: structuredClone(card),
+      ...fresh,
+      hp: returnState?.hp ?? fresh.health,
+      age: returnState?.age ?? 0,
+      used: returnState?.used ?? [],
+      base: returnState?.base ?? structuredClone(fresh),
+      ...(returnState?.rush ? { rush: true } : {}),
+      ...(returnState?.pushDirection ? { pushDirection: returnState.pushDirection } : {}),
+      ...(returnState?.followedRound !== undefined
+        ? { followedRound: returnState.followedRound }
+        : {}),
     };
     this.s[side][row][col] = unit;
     this.s.log.unshift(
       `${side === "player" ? "我方" : "敌方"} ${card.name} 部署至第 ${col + 1} 列。`,
     );
     this.emit({ kind: "deploy", source, target: slot(side, row, col), label });
+    if (has(unit, "kin") || has(unit, "search")) {
+      const deck = side === "player" ? this.s.deck : this.s.enemyDeck;
+      if (has(unit, "kin")) {
+        const index = deck.findIndex((card) => card.tribe === unit.tribe);
+        if (index >= 0) {
+          this.give(side, deck.splice(index, 1)[0], col);
+          this.effect(side, row, col, `${unit.name} 寻亲，获得同族。`);
+        } else this.effect(side, row, col, `${unit.name} 寻亲，主牌库没有同族。`);
+      }
+      if (has(unit, "search")) {
+        if (!deck.length) this.effect(side, row, col, `${unit.name} 检索，主牌库已空。`);
+        else if (side === "player") {
+          this.s.searches.push({ sourceId: unit.id, name: unit.name });
+          this.effect(side, row, col, `${unit.name} 检索，选择一张牌。`);
+          const answer = this.s.searchAnswers?.shift();
+          if (answer === undefined) {
+            if (this.interactive) throw new SearchPause(this.s);
+          } else {
+            const index = deck.findIndex((card) => card.id === answer);
+            if (index < 0) throw new Error("检索选择已失效");
+            this.s.searches.shift();
+            const card = deck.splice(index, 1)[0];
+            this.give(side, card, col);
+            this.effect(side, row, col, `${unit.name} 检索，获得 ${card.name}。`);
+          }
+        } else {
+          const ceiling =
+            this.s.difficulty === "boss"
+              ? 3
+              : this.s.difficulty === "elite"
+                ? 2
+                : this.s.round <= 3
+                  ? 1
+                  : this.s.round < 8
+                    ? 2
+                    : 3;
+          const candidates = deck.filter((card) => card.cost <= ceiling);
+          const choice = [...(candidates.length ? candidates : deck)].sort(
+            (a, b) => b.attack + b.health - a.attack - a.health || a.cost - b.cost,
+          )[0];
+          deck.splice(deck.indexOf(choice), 1);
+          this.give(side, choice, col);
+          this.effect(side, row, col, `${unit.name} 检索，预备 ${choice.name}。`);
+        }
+      }
+    }
+    if (has(unit, "catalyst")) {
+      for (const neighbor of [col - 1, col + 1].filter((c) => c >= 0 && c < 5)) {
+        const growing = this.s[side][row][neighbor];
+        if (growing && growing.hp > 0 && (has(growing, "growth") || has(growing, "metamorph"))) {
+          growing.age = (growing.age ?? 0) + 1;
+          this.mature(side, row, neighbor);
+        }
+      }
+    }
     if (has(unit, "porter")) {
       this.give(side, creature("ant", `token-${this.s.encounter}-${this.s.nextId++}`), col);
       this.effect(side, row, col, `${unit.name} 搬运，获得蚂蚁。`);
@@ -270,6 +425,26 @@ export class BattleEngine {
       killed: defender.hp <= 0 ? defender : null,
     };
   }
+  private attackRows(side: Side, row: number, col: number, targetCol: number): number[] {
+    const unit = this.s[side][row][col]!,
+      enemy = other(side);
+    if (has(unit, "dive"))
+      return this.targetable(enemy, 1, targetCol) && !this.flying(enemy, 1, targetCol) ? [1] : [];
+    if (this.flying(side, row, col))
+      return [0, 1].filter(
+        (r) => this.targetable(enemy, r, targetCol) && this.flying(enemy, r, targetCol),
+      );
+    return this.targetable(enemy, 0, targetCol)
+      ? [0, ...(this.targetable(enemy, 1, targetCol) ? [1] : [])]
+      : [];
+  }
+  private powerAgainst(side: Side, row: number, col: number, target: Unit | null, stealth = false) {
+    const attacker = this.s[side][row][col]!;
+    let power = attackPower(this.s, side, row, col);
+    if (target && target.hp < target.health && has(attacker, "hunt")) power += 2;
+    if (target && has(target, "flying") && has(attacker, "birdcatcher")) power += 2;
+    return stealth ? power * 2 : power;
+  }
   strike(side: Side, id: string, targetCol: number, stealth: boolean) {
     const position = this.find(side, id);
     if (!position) return;
@@ -280,27 +455,12 @@ export class BattleEngine {
     const air = this.flying(side, row, col);
     const dive = has(attacker, "dive");
     let targets: number[];
-    const chooseTargets = () =>
-      dive
-        ? this.targetable(enemy, 1, targetCol) && !this.flying(enemy, 1, targetCol)
-          ? [1]
-          : []
-        : air
-          ? [0, 1].filter(
-              (r) => this.targetable(enemy, r, targetCol) && this.flying(enemy, r, targetCol),
-            )
-          : this.targetable(enemy, 0, targetCol)
-            ? [0, ...(this.targetable(enemy, 1, targetCol) ? [1] : [])]
-            : [];
+    const chooseTargets = () => this.attackRows(side, row, col, targetCol);
     targets = chooseTargets();
     let defender = targets.length ? board[targets[0]][targetCol] : null;
     // Check power before intercepting: an attack that deals no damage is not a threat.
-    const powerAgainst = (target: Unit | null) => {
-      let power = attackPower(this.s, side, row, col);
-      if (target && target.hp < target.health && has(attacker, "hunt")) power += 2;
-      if (target && has(target, "flying") && has(attacker, "birdcatcher")) power += 2;
-      return stealth ? power * 2 : power;
-    };
+    const powerAgainst = (target: Unit | null) =>
+      this.powerAgainst(side, row, col, target, stealth);
     if (powerAgainst(defender) <= 0) return false;
     if (!defender && (dive || !air)) {
       this.intercept(enemy, dive ? 1 : 0, targetCol);
@@ -361,13 +521,44 @@ export class BattleEngine {
     ).filter((c) => c >= 0 && c < 5);
     let attacked = false;
     const stealth = has(attacker, "stealth") && !(attacker.used ?? []).includes("stealth");
+    const charging = !!attacker.rush;
+    const canAttack =
+      (row === 0 || has(attacker, "ranged")) &&
+      targets.some((targetCol) => {
+        const targetRow = this.attackRows(side, row, col, targetCol)[0];
+        return (
+          this.powerAgainst(
+            side,
+            row,
+            col,
+            targetRow === undefined ? null : this.s[other(side)][targetRow][targetCol],
+          ) > 0
+        );
+      });
+    if (canAttack && has(attacker, "blood")) {
+      attacker.hp--;
+      this.emit({
+        kind: "hit",
+        target: slot(side, row, col),
+        amount: 1,
+        label: `${attacker.name} 搏命 · 生命 −1`,
+      });
+      if (attacker.hp <= 0) {
+        this.remove(side, row, col, "expired");
+        return;
+      }
+      attacker.bloodBonus = 2;
+    }
     for (const targetCol of row === 0 || has(attacker, "ranged") ? targets : []) {
-      if (!this.find(side, id) || this.checkEnd()) return;
+      const current = this.find(side, id);
+      if (!current || this.s[side][current[0]][current[1]] !== attacker || this.checkEnd()) return;
       attacked = !!this.strike(side, id, targetCol, stealth) || attacked;
     }
     if (attacked && stealth) attacker.used = [...(attacker.used ?? []), "stealth"];
+    if (attacked && charging) delete attacker.rush;
+    delete attacker.bloodBonus;
     const after = this.find(side, id);
-    if (!after || this.checkEnd()) return;
+    if (!after || this.s[side][after[0]][after[1]] !== attacker || this.checkEnd()) return;
     if (attacked && has(attacker, "shortlived")) {
       this.remove(side, after[0], after[1], "expired");
       return;
@@ -377,15 +568,42 @@ export class BattleEngine {
       const [r, c] = after;
       const nextCol = [c + 1, c - 1].find((n) => n >= 0 && n < 5 && !this.s[side][r][n]);
       if (nextCol !== undefined) {
-        this.s[side][r][c] = null;
-        this.s[side][r][nextCol] = attacker;
-        this.emit({
-          kind: "advance",
-          source: slot(side, r, c),
-          target: slot(side, r, nextCol),
-          label: `${attacker.name} 迁徙到第 ${nextCol + 1} 列`,
-        });
+        this.move(side, r, c, r, nextCol, `${attacker.name} 迁徙到第 ${nextCol + 1} 列`);
+        this.followMoves();
       }
+    }
+    const resting = this.find(side, id);
+    if (resting && has(attacker, "recall") && !this.checkEnd()) {
+      const {
+        hp,
+        age = 0,
+        used = [],
+        base,
+        submerged: _submerged,
+        pushDirection,
+        rush,
+        followedRound,
+        bloodBonus: _bonus,
+        ...card
+      } = attacker;
+      this.s[side][resting[0]][resting[1]] = null;
+      this.give(
+        side,
+        {
+          ...normalCost(card),
+          returnState: {
+            hp,
+            age,
+            used: [...used],
+            base: structuredClone(base),
+            rush,
+            followedRound,
+            pushDirection,
+          },
+        },
+        resting[1],
+      );
+      this.effect(side, resting[0], resting[1], `${attacker.name} 归巢，返回手牌。`);
     }
   }
   private push(side: Side, row: number, col: number) {
@@ -407,15 +625,16 @@ export class BattleEngine {
     for (let target = gap; target !== col; target -= direction) {
       const from = target - direction,
         moving = rank[from]!;
-      rank[target] = moving;
-      rank[from] = null;
-      this.emit({
-        kind: "advance",
-        source: slot(side, row, from),
-        target: slot(side, row, target),
-        label: `${moving.name} ${moving.id === unit.id ? "推搡前进" : "被推搡"}至第 ${target + 1} 列`,
-      });
+      this.move(
+        side,
+        row,
+        from,
+        row,
+        target,
+        `${moving.name} ${moving.id === unit.id ? "推搡前进" : "被推搡"}至第 ${target + 1} 列`,
+      );
     }
+    this.followMoves();
   }
   beginTurn(side: Side) {
     for (let row = 0; row < 2; row++)
@@ -454,6 +673,50 @@ export class BattleEngine {
     }
     this.endTurn(side);
   }
+  private mature(side: Side, row: number, col: number) {
+    const unit = this.s[side][row][col];
+    if (!unit || unit.hp <= 0) return;
+    unit.used ??= [];
+    const leaveSeed = (species: Card["species"]) => {
+      if (has(unit, "seed")) {
+        const seed = originalForm(species, `token-${this.s.encounter}-${this.s.nextId++}`);
+        this.give(side, seed, col);
+        this.effect(side, row, col, `${unit.name} 留种，获得 ${seed.name}。`);
+      }
+    };
+    if (has(unit, "growth") && !unit.used.includes("growth")) {
+      const species = unit.species,
+        grown = grownForm(unit);
+      if (grown) {
+        const name = unit.name,
+          healthBefore = unit.health;
+        Object.assign(unit, grown);
+        unit.hp = Math.min(unit.health, unit.hp + unit.health - healthBefore);
+        if (!grown.native.includes("growth")) unit.used.push("growth");
+        this.effect(side, row, col, `${name} 长大为${unit.name}。`);
+      } else {
+        unit.used.push("growth");
+        unit.attack++;
+        unit.health++;
+        unit.hp++;
+        this.effect(side, row, col, `${unit.name} 成长，攻击和生命 +1。`);
+      }
+      leaveSeed(species);
+    }
+    if (has(unit, "metamorph") && (unit.age ?? 0) >= 2 && !unit.used.includes("metamorph")) {
+      const species = unit.species;
+      unit.used.push("metamorph");
+      unit.species = "butterfly";
+      unit.art = "moth";
+      unit.name = "蝶";
+      unit.attack = 3;
+      unit.health = 3;
+      unit.hp = 3;
+      if (!has(unit, "flying")) unit.native.push("flying");
+      this.effect(side, row, col, "蜕变为 3/3 的蝶，恢复生命并获得飞行。");
+      leaveSeed(species);
+    }
+  }
   startRound() {
     this.beginTurn("player");
     for (const side of ["player", "enemy"] as const) {
@@ -475,49 +738,16 @@ export class BattleEngine {
             this.give(side, this.token("bee"), col);
             this.effect(side, row, col, `${unit.name} 蜂群，获得一只蜂。`);
           }
-          if (has(unit, "growth") && !unit.used.includes("growth")) {
-            const grown = grownForm(unit);
-            if (grown) {
-              const name = unit.name,
-                healthBefore = unit.health;
-              Object.assign(unit, grown);
-              unit.hp = Math.min(unit.health, unit.hp + unit.health - healthBefore);
-              if (!grown.native.includes("growth")) unit.used.push("growth");
-              this.effect(side, row, col, `${name} 长大为${unit.name}。`);
-            } else {
-              unit.used.push("growth");
-              unit.attack++;
-              unit.health++;
-              unit.hp++;
-              this.effect(side, row, col, `${unit.name} 成长，攻击和生命 +1。`);
-            }
-          }
-          if (has(unit, "metamorph") && unit.age >= 2 && !unit.used.includes("metamorph")) {
-            unit.used.push("metamorph");
-            unit.species = "butterfly";
-            unit.art = "moth";
-            unit.name = "蝶";
-            unit.attack = 3;
-            unit.health = 3;
-            unit.hp = 3;
-            if (!has(unit, "flying")) unit.native.push("flying");
-            this.effect(side, row, col, "蜕变为 3/3 的蝶，恢复生命并获得飞行。");
-          }
+          this.mature(side, row, col);
         }
       for (let col = 0; col < 5; col++) {
         const rear = this.s[side][1][col];
         if (rear && !this.s[side][0][col]) {
-          this.s[side][0][col] = rear;
-          this.s[side][1][col] = null;
           this.s.log.unshift(
             `第 ${this.s.round} 回合开始：${rear.name} 自动上前至第 ${col + 1} 列。`,
           );
-          this.emit({
-            kind: "advance",
-            source: slot(side, 1, col),
-            target: slot(side, 0, col),
-            label: `${rear.name} 上前补位 · 第 ${col + 1} 列`,
-          });
+          this.move(side, 1, col, 0, col, `${rear.name} 上前补位 · 第 ${col + 1} 列`);
+          this.followMoves();
         }
       }
     }

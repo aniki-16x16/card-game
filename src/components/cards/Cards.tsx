@@ -1,14 +1,14 @@
 import { Heart, Swords } from "lucide-react";
 import { SigilIcon } from "./SigilIcon";
 import { Creature } from "../creatures/Creature";
-import { SIGILS, TRIBES, sigils, sigilDescription } from "../../domain/game";
+import { SIGILS, TRIBES, sigils, sigilDescription, intrinsicAttack } from "../../domain/game";
 import type { Card, Unit } from "../../domain/game";
 
 export function CardFace({
   card,
   compact = false,
   onInspect,
-  attack = card.attack,
+  attack = intrinsicAttack(card),
 }: {
   card: Card | Unit;
   compact?: boolean;
@@ -16,7 +16,9 @@ export function CardFace({
   attack?: number;
 }) {
   const submerged = "submerged" in card && card.submerged;
-  const direction = "pushDirection" in card ? card.pushDirection : undefined;
+  const direction = "pushDirection" in card ? card.pushDirection : card.returnState?.pushDirection;
+  const hp = "hp" in card ? card.hp : (card.returnState?.hp ?? card.health);
+  const rushing = "rush" in card ? card.rush : card.returnState?.rush;
   return (
     <div
       onContextMenu={(event) => {
@@ -54,9 +56,11 @@ export function CardFace({
           <span className="no-sigil">—</span>
         )}
       </div>
-      {"hp" in card && (submerged || sigils(card).includes("shove")) && (
+      {(submerged || rushing || sigils(card).includes("shove") || !!card.costDiscount) && (
         <div className="card-status">
           {submerged && <span>潜水</span>}
+          {rushing && <span>奔袭 +2</span>}
+          {!!card.costDiscount && <span>接力 −{card.costDiscount} 费</span>}
           {sigils(card).includes("shove") && (
             <span aria-label={`推搡方向${direction === -1 ? "左" : "右"}`}>
               {direction === -1 ? "←" : "→"}
@@ -73,12 +77,11 @@ export function CardFace({
           <Swords className="stat-icon" aria-hidden="true" /> {attack}
         </span>
         <span
-          className={"hp" in card && card.hp < card.health ? "hurt" : ""}
-          aria-label={`生命 ${"hp" in card ? Math.max(0, card.hp) : card.health}`}
+          className={hp < card.health ? "hurt" : ""}
+          aria-label={`生命 ${Math.max(0, hp)}`}
           title="生命"
         >
-          <Heart className="stat-icon" aria-hidden="true" />{" "}
-          {"hp" in card ? Math.max(0, card.hp) : card.health}
+          <Heart className="stat-icon" aria-hidden="true" /> {Math.max(0, hp)}
         </span>
       </div>
     </div>

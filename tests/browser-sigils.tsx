@@ -2,6 +2,7 @@ import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { BattleView } from "../src/features/battle/BattleView";
+import { DeckSearch } from "../src/features/battle/DeckSearch";
 import { animateBattleAction } from "../src/features/battle/battleAnimation";
 import {
   creature,
@@ -10,6 +11,7 @@ import {
   markSacrifice,
   planDeploy,
   planRound,
+  planSearch,
   selectSummon,
   startBattle,
 } from "../src/domain/game";
@@ -20,7 +22,19 @@ import "../src/features/battle/BattleView.css";
 import "../src/features/battle/BattleCamera.css";
 import "../src/features/battle/BattleAnimation.css";
 
-const scenes = ["挖洞", "潜水", "推搡", "补位", "威吓", "成长"] as const;
+const scenes = [
+  "挖洞",
+  "潜水",
+  "推搡",
+  "补位",
+  "威吓",
+  "成长",
+  "检索",
+  "催生",
+  "移动接力",
+  "群势接力",
+  "归巢",
+] as const;
 type Scene = (typeof scenes)[number];
 function unit(species: Species, id: string, patch: Partial<Unit> = {}): Unit {
   const card = creature(species, id);
@@ -49,6 +63,32 @@ function sample(scene: Scene): Battle {
     s.player[0][0] = unit("wolfpup", "pup");
     s.player[0][2] = unit("fawn", "fawn");
     s.player[0][4] = unit("carp", "fish");
+  } else if (scene === "检索") {
+    s.hand = [creature("skink", "searcher")];
+    s.player[0][4] = unit("mouse", "payment");
+    s.deck = [
+      creature("wolf", "chosen-wolf"),
+      creature("antqueen", "chosen-queen"),
+      creature("firefly", "chosen-catalyst"),
+      creature("scoutbee", "chosen-scout"),
+    ];
+  } else if (scene === "催生") {
+    s.hand = [creature("firefly", "catalyst")];
+    s.player[0][0] = unit("wolfpup", "pup");
+    s.player[0][2] = unit("caterpillar", "larva");
+    s.player[0][4] = unit("mouse", "payment");
+  } else if (scene === "移动接力") {
+    s.player[0][1] = unit("pigeon", "follower");
+    s.player[0][2] = unit("hare", "runner");
+  } else if (scene === "群势接力") {
+    s.hand = [creature("antqueen", "queen")];
+    s.player[0][0] = unit("soldierant", "soldier");
+    s.player[0][1] = unit("ant", "ally");
+    s.player[0][3] = unit("ant", "victim");
+    s.enemy[0][3] = unit("wolf", "hunter", { attack: 1 });
+  } else if (scene === "归巢") {
+    s.player[0][1] = unit("scoutbee", "scout", { hp: 1, health: 3 });
+    s.player[0][4] = unit("mouse", "payment", { attack: 0 });
   } else {
     s.player[0][2] = unit("wolf", "target");
     s.enemy[0][2] = unit("iguana", "intimidator");
@@ -88,10 +128,17 @@ export function SigilCheck() {
     setResult("待播放");
   }
   return (
-    <div style={{ padding: 12 }}>
+    <div
+      style={{
+        padding: 12,
+        height: "100dvh",
+        display: "grid",
+        gridTemplateRows: "auto minmax(0, 1fr)",
+      }}
+    >
       <nav
         aria-label="印记检查场景"
-        style={{ display: "flex", alignItems: "center", gap: 16, padding: 8 }}
+        style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, padding: 8 }}
       >
         {scenes.map((name) => (
           <button disabled={settling} key={name} onClick={() => reset(name)}>
@@ -103,7 +150,7 @@ export function SigilCheck() {
         </button>
         <output aria-label="播放结果">{result}</output>
       </nav>
-      <div style={{ height: "calc(100dvh - 80px)" }}>
+      <div style={{ minHeight: 0 }}>
         <BattleView
           battle={battle}
           selected={battle.summon?.cardId ?? null}
@@ -121,6 +168,9 @@ export function SigilCheck() {
           onLog={() => {}}
         />
       </div>
+      {!settling && (
+        <DeckSearch battle={battle} onChoose={(id) => void play(planSearch(battle, id))} />
+      )}
     </div>
   );
 }

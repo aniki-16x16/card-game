@@ -415,7 +415,7 @@ test("meeting cost sacrifices immediately, locks the card and turn, and frees de
 
 test("sacrifice triggers death/rebirth but not thorns or killed causes", () => {
   const s = quietBattle();
-  s.player[0][0] = unit(4, "moth", { added: ["thorns"] });
+  s.player[0][0] = unit(4, "moth", { native: ["rebirth"], added: ["thorns"] });
   s.player[1][0] = unit(5, "rear");
   const paid = markSacrifice(selectSummon(s, "starter-1"), "moth");
   assert.equal(paid.state.player[0][0], null);
