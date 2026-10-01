@@ -256,7 +256,7 @@ export default function App() {
               查看牌组 · {run.deck.length}
             </button>
             <a
-              href="/creatures"
+              href={`${import.meta.env.BASE_URL}creatures`}
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => setShowMenu(false)}

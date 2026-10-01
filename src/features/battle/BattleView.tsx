@@ -112,7 +112,7 @@ export function BattleView(props: Props) {
 
         <div className="rail-menu">
           <a
-            href="/creatures"
+            href={`${import.meta.env.BASE_URL}creatures`}
             target="_blank"
             rel="noopener noreferrer"
             title="在新标签页打开生物图鉴"
