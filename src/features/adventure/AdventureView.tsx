@@ -12,15 +12,19 @@ import './Adventure.css'
 const icons = { cost: Dices, tribe: PawPrint, remove: Scissors, upgrade: Flame, transfer: GitMerge, item: Gift, battle: Swords, elite: Skull, boss: Crown }
 export function MapView({ run, onEnter, readOnly = false }: { run: Adventure; onEnter: (id: string) => void; readOnly?: boolean }) {
   const root = useRef<HTMLDivElement>(null)
-  useEffect(() => { if (run.path.length && !readOnly) root.current?.querySelector('.available')?.scrollIntoView({ block: 'center' }) }, [run.path.length, readOnly])
+  useEffect(() => {
+    const target = root.current?.querySelector('.current') ?? root.current?.querySelector('.available')
+    target?.scrollIntoView({ block: 'center', inline: 'nearest' })
+  }, [run.seed, run.path.length, run.visit?.nodeId, readOnly])
   const available = availableNodes(run)
   const nodes = new Map(run.nodes.map(node => [node.id, node]))
   const frontier = run.visit?.nodeId ?? run.path.at(-1)
   const { upcoming, reachable } = getMapReachability(run)
-  const y = (node: Adventure['nodes'][number]) => node.y ?? (node.floor - 1) * 150 + 62
-  const height = Math.max(...run.nodes.map(y)) + 100
+  const depth = (node: Adventure['nodes'][number]) => node.y ?? (node.floor - 1) * 150 + 62
+  const height = Math.max(...run.nodes.map(depth)) + 100
+  const y = (node: Adventure['nodes'][number]) => height - depth(node)
   return <div ref={root} className="journey-map" aria-label="冒险地图">
-    <svg viewBox={`0 0 800 ${height}`} preserveAspectRatio="none" aria-hidden="true">
+    <svg className="map-routes" viewBox={`0 0 800 ${height}`} preserveAspectRatio="none" aria-hidden="true">
       {run.nodes.flatMap(node => node.next.map(id => {
         const next = nodes.get(id)!
         const state = node.id === frontier && upcoming.has(id) ? 'upcoming' : reachable.has(node.id) && reachable.has(id) ? 'reachable' : 'unreachable'
@@ -32,10 +36,10 @@ export function MapView({ run, onEnter, readOnly = false }: { run: Adventure; on
       const Icon = icons[node.kind], visited = run.path.includes(node.id), active = run.visit?.nodeId === node.id
       const state = upcoming.has(node.id) ? 'available' : reachable.has(node.id) ? 'reachable' : 'unreachable'
       return <div key={node.id} style={{left:`${node.x*100}%`,top:y(node)}} className={`map-node ${node.kind} ${state} ${active ? 'current' : ''}`}>
-        <button className="node-ring" disabled={readOnly || !available.includes(node.id)} onClick={() => onEnter(node.id)} aria-current={active ? 'step' : undefined} aria-label={`${node.bonus ? '精英专属' : `第${node.floor}层`} ${NODE_NAMES[node.kind]}${visited ? ' 已完成' : ''}${active ? ' 当前节点' : ''}`}>
+        <button className="node-ring" disabled={readOnly || !available.includes(node.id)} onClick={() => onEnter(node.id)} aria-current={active ? 'step' : undefined} aria-label={`${node.bonus ? '' : `第${node.floor}层 `}${NODE_NAMES[node.kind]}${visited ? ' 已完成' : ''}${active ? ' 当前节点' : ''}`}>
           {visited ? <Check/> : <Icon/>}
         </button>
-        <span className="node-caption"><strong>{NODE_NAMES[node.kind]}</strong>{node.bonus && <small>精英专属</small>}</span>
+        <span className="node-caption"><strong>{NODE_NAMES[node.kind]}</strong></span>
       </div>
     })}</div>
   </div>
@@ -56,7 +60,7 @@ export function NodeEvent({ run, onChange, onInspect }: { run: Adventure; onChan
   const node = currentNode(run)!, visit = run.visit!
   const [selected,setSelected] = useState('')
   const reward = ['cost','tribe'].includes(node.kind) || isCombat(node.kind)
-  return <section className="node-event"><span className="eyebrow">{node.bonus ? '精英专属奖励' : `雾林之路 / 第 ${node.floor} 层`}</span><h1>{isCombat(node.kind) ? '战利品' : NODE_NAMES[node.kind]}</h1>
+  return <section className="node-event">{!node.bonus && <span className="eyebrow">雾林之路 / 第 {node.floor} 层</span>}<h1>{isCombat(node.kind) ? '战利品' : NODE_NAMES[node.kind]}</h1>
     {visit.message && <p className="event-message" role="status">{visit.message}</p>}
     {reward ? <>{visit.category === undefined && !isCombat(node.kind) ? <><div className="category-options">{categoryOptions(run).map(category => <button key={category} onClick={() => onChange(chooseCategory(run,category))}>{typeof category === 'number' ? `${category} 费` : TRIBES[category]}</button>)}</div></> : <>{visit.category !== undefined && <p>{typeof visit.category === 'number' ? `${visit.category} 费` : TRIBES[visit.category]}</p>}<div className="event-cards">{visitRewards(run).map(card => <button key={card.id} onClick={() => onChange(takeReward(run,card.id))} aria-label={`拿取 ${card.name}`}><CardFace card={card} onInspect={onInspect}/><span>加入牌组</span></button>)}</div><button className="secondary" onClick={() => onChange(takeReward(run,null))}>跳过拿牌</button></>}</> : <>
       {!visit.done && node.kind === 'transfer' && <ForgeEvent run={run} onChange={onChange} onInspect={onInspect}/>}
@@ -71,9 +75,7 @@ export function NodeEvent({ run, onChange, onInspect }: { run: Adventure; onChan
 }
 
 export function AdventureView({ run, onEnter, onChange, onInspect, onReset }: { run: Adventure; onEnter: (id:string)=>void; onChange:(r:Adventure)=>void; onInspect:(c:Card)=>void; onReset:()=>void }) {
-  const [showDeck,setShowDeck] = useState(false)
-  return <main className="adventure"><header className="adventure-heading"><div><span className="eyebrow">VERDANT PACT / THE WILDS</span><h1>雾林之路</h1><p>18 层旅程 · Boss：荒野之王</p></div><div className="adventure-actions"><button onClick={()=>setShowDeck(!showDeck)}>{showDeck ? '收起牌组' : `查看牌组 · ${run.deck.length}`}</button><a href="/creatures" target="_blank" rel="noopener noreferrer">图鉴 ↗</a><button onClick={onReset}>重新开始</button></div></header>
-    {showDeck && <div className="event-deck">{run.deck.map(c=><button key={c.id} onClick={()=>onInspect(c)}><CardFace card={c}/></button>)}</div>}
+  return <main className="adventure">
     {run.status !== 'playing' ? <section className="journey-result">{run.status === 'won' ? <Crown size={60}/> : <Skull size={60}/>}<h1>{run.status === 'won' ? '你穿过了雾林。' : '契约止于此处。'}</h1><p>{run.status === 'won' ? '荒野之王已败，旅程完成。' : '天平向我方倾斜达到 10 点，本局冒险结束。'}</p><p>完成 {run.path.length} 个节点 · 牌组 {run.deck.length} 张</p><button className="primary" onClick={onReset}>开始新的旅程</button></section> : run.visit ? <NodeEvent key={run.visit.nodeId} run={run} onChange={onChange} onInspect={onInspect}/> : <div className="map-layout"><MapView run={run} onEnter={onEnter}/></div>}
   </main>
 }

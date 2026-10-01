@@ -139,7 +139,7 @@ function layout(layers: MapNode[][], rng: Random, rewards: Map<string, NodeKind>
     const total = gaps.reduce((sum, gap) => sum + gap, 0)
     let offset = 0
     for (let i = 0; i < layer.length; i++) {
-      layer[i].x = layer.length === 1 ? center : left + offset / total * span
+      layer[i].x = layer.length === 1 ? .5 : left + offset / total * span
       anchors.set(layer[i].id, layer[i].x)
       offset += gaps[i] ?? 0
     }
@@ -148,6 +148,7 @@ function layout(layers: MapNode[][], rng: Random, rewards: Map<string, NodeKind>
   // ordered minimum spacing so labels fit even on the narrow map canvas.
   const parents = new Map(nodes.map(node => [node.id, nodes.filter(n => n.next.includes(node.id))]))
   for (let pass = 0; pass < 10; pass++) for (const layer of (pass % 2 ? [...layers].reverse() : layers)) {
+    if (layer.length === 1) continue
     for (const node of layer) {
       const neighbors = [...parents.get(node.id)!, ...node.next.map(id => byId.get(id)!)]
       const mean = neighbors.reduce((sum, n) => sum + n.x, 0) / neighbors.length

@@ -1,0 +1,16 @@
+.game-menu-dialog { width: 320px; }
+.game-menu-dialog h2 { text-align: center; margin-bottom: 24px; }
+.game-menu-actions { display: flex; flex-direction: column; gap: 12px; }
+.game-menu-actions button, .game-menu-actions a {
+  display: block;
+  padding: 13px 18px;
+  background: #23362b;
+  border: 1px solid #74885b50;
+  border-radius: 5px;
+  color: #cadbb0;
+  text-align: center;
+  text-decoration: none;
+  font-size: 14px;
+}
+.game-menu-actions button:hover, .game-menu-actions a:hover { background: #34482d; }
+.game-menu-actions button:focus-visible, .game-menu-actions a:focus-visible { outline: 2px solid #dcefb7; outline-offset: 3px; }

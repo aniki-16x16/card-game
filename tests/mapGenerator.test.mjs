@@ -15,6 +15,8 @@ test('a thousand maps offer distinct events, useful battle branches and stable r
     shapes.add(ordinary.map(n => `${n.id}:${n.next.map(id => id.replace('-bonus', '')).join(',')}`).join('|'))
     encounterFloors.add([...new Set(ordinary.filter(n => isCombat(n.kind)).map(n => n.floor))].join(','))
     assert.equal(profile[0], 1); assert.equal(profile[17], 1)
+    assert.equal(nodes[0].x, .5)
+    assert.equal(nodes.find(n => n.kind === 'boss').x, .5)
     assert.ok(profile.slice(1, 17).every(count => count >= 2 && count <= 5))
     assert.ok(ordinary.some(n => n.floor === 17 && n.kind === 'upgrade'))
     for (const node of nodes) {

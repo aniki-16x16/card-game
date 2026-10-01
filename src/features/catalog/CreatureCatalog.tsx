@@ -16,7 +16,6 @@ export function CreatureCatalog() {
   return <main className="creature-catalog">
     <header className="catalog-heading">
       <div><span className="eyebrow">VERDANT PACT / BESTIARY</span><h1>生物图鉴</h1><p>{allCreatures().length} 张基础牌 · 6 个类别 · {Object.keys(SIGILS).length} 种印记</p></div>
-      <a href="/">返回冒险 →</a>
     </header>
     <div className="catalog-filters">
       <div className="catalog-tribes" aria-label="种族筛选"><button aria-pressed={tribe === 'all'} onClick={() => setTribe('all')}>全部种族</button>{Object.entries(TRIBES).map(([key, name]) => <button key={key} aria-pressed={tribe === key} onClick={() => setTribe(key as Tribe)}>{name} <small>{pool.filter(c => c.tribe === key).length}</small></button>)}</div>
