@@ -46,3 +46,12 @@ test('sacrifice playback is left-to-right at 100ms intervals without reordering 
   assert.deepEqual(schedule.map(entry => entry.delay), [0, 100, 200, 300])
   assert.deepEqual(frames, original)
 })
+
+test('raised cards preserve their fan angle on both sides of the hand', () => {
+  const idle = handLayout(7, 760, -1)
+  for (const index of [0, 1, 5, 6]) {
+    const active = handLayout(7, 760, index)
+    assert.equal(active[index].angle, idle[index].angle)
+    assert.ok(active[index].y < idle[index].y)
+  }
+})

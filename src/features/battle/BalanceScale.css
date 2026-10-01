@@ -1,0 +1,5 @@
+.balance-ruler { position: relative; height: 42px; margin: 20px 8px 12px; }
+.balance-ticks { position: absolute; inset: 18px -1px 0; display: flex; justify-content: space-between; align-items: center; }
+.balance-ticks > span { width: 2px; height: 12px; flex: 0 0 2px; border-radius: 1px; }
+.balance-ticks > .major { height: 24px; }
+.balance-pointer { position: absolute; top: 0; left: 50%; width: 12px; height: 10.3923px; transform: translateX(-50%); clip-path: polygon(0 0, 100% 0, 50% 100%); }

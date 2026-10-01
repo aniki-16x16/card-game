@@ -1,3 +1,4 @@
+import { BalanceScale } from './BalanceScale'
 import { BattleHand } from './BattleHand'
 import { requiresDraw, sacrificePoints } from '../../domain/game'
 import type { Battle, Card, DrawPile, Unit } from '../../domain/game'
@@ -34,7 +35,6 @@ export function BattleView(props: Props) {
   const [size, setSize] = useState({ width: 900, height: 600 })
   const screen = useRef<HTMLDivElement>(null)
   const camera = useRef<HTMLDivElement>(null)
-  const balanceMarker = useRef<HTMLElement>(null)
   const endButton = useRef<HTMLButtonElement>(null)
   const drawWarning = useRef<ReturnType<typeof animate> | null>(null)
   const [drawRejectedFor, setDrawRejectedFor] = useState<Battle | null>(null)
@@ -129,18 +129,11 @@ export function BattleView(props: Props) {
     })
     return () => { animation.cancel() }
   }, [cameraOffset])
-  useLayoutEffect(() => {
-    if (!balanceMarker.current) return
-    const animation = animate(balanceMarker.current, {
-      left: `${(battle.balance + 10) * 5}%`, duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 200, ease: 'out(3)',
-    })
-    return () => { animation.cancel() }
-  }, [battle.balance])
   const cameraStyle = { '--world-width': `${worldWidth}px`, '--lane-width': `${cardWidth}px`, '--camera-scale': scale } as CSSProperties
   return <div className="combat-screen" ref={screen}>
     <aside className="combat-rail left-rail" aria-label="战斗状态">
       <div className="combat-identity"><span>❋</span><strong>雾林边境</strong><small>地图第 {battle.encounter} 层</small></div>
-      <div className="combat-scale" aria-label="战斗天平"><span>{battle.difficulty === 'boss' ? '荒野之王' : battle.difficulty === 'elite' ? '精英' : '荒野守卫'}</span><strong>{battle.balance === 0 ? '平衡' : (battle.balance > 0 ? '敌方' : '我方') + '承压 ' + Math.abs(battle.balance)}</strong><div className="scale-track"><i ref={balanceMarker}/></div><div className="scale-ends"><span data-motion="life-player">我方 −10</span><span data-motion="life-enemy">敌方 +10</span></div></div>
+      <div className="combat-scale" aria-label="战斗天平"><BalanceScale balance={battle.balance}/></div>
       <div className="combat-round"><span>回合</span><strong>{String(battle.round).padStart(2, '0')}</strong><span>{settling ? '交锋结算中' : '你的部署阶段'}</span></div>
 
       <div className="rail-menu"><a href="/creatures" target="_blank" rel="noopener noreferrer" title="在新标签页打开生物图鉴">生物图鉴 ↗</a><button onClick={props.onLog}>战斗记录</button><button disabled={settling} onClick={props.onReset}>重新开始</button></div>

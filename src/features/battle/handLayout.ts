@@ -11,7 +11,7 @@ export function handLayout(count: number, width: number, active: number) {
       width: cardWidth,
       x: position * step + spread,
       y: selected ? -44 : normalized * normalized * 16,
-      angle: selected ? 0 : normalized * 12,
+      angle: normalized * 12,
       scale: selected ? 1.07 : 1,
       z: selected ? 100 : index + 1,
     }

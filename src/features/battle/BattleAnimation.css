@@ -4,11 +4,12 @@
 .combat-slot { position: relative; }
 .combat-slot:has(.card-face) { overflow: visible; }
 .action-label { color: #e7d4a4; font-size: 17px; line-height: 1.6; }
+/* 攻击临时层：perspective 越小，近大远小越明显；不接收点击，避免挡住界面。 */
 .attack-stage { position: fixed; inset: 0; z-index: 100; pointer-events: none; perspective: 1100px; transform-style: preserve-3d; }
+/* 整张牌负责路径和俯仰；横条各自负责弯曲；阴影始终留在桌面上。 */
 .attack-card.camera-world { position: absolute; transform-origin: center; transform-style: preserve-3d; will-change: transform; }
 .attack-strip { position: absolute; left: 0; top: 0; width: 100%; overflow: hidden; transform-origin: center; backface-visibility: visible; }
 .attack-shadow { position: absolute; border-radius: 12px; background: #000; pointer-events: none; }
-.combat-scale .scale-track i { left: 50%; transition: none; }
 .deploy-stage { position: fixed; inset: 0; z-index: 100; pointer-events: none; perspective: 1000px; transform-style: preserve-3d; }
 .deploy-card.camera-world { position: absolute; transform-origin: center; will-change: transform; }
 .deploy-card .combat-slot { display: block; width: 100%; height: 100%; overflow: hidden; border-radius: 8px; }

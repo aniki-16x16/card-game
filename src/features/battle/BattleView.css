@@ -84,7 +84,7 @@
 .combat-hand-card.selected .card-face { border-color: #e0edae; box-shadow: 0 0 0 2px #c5df9166; background: #435936; }
 .combat-hand-card.selected { transform: translateY(-5px); }
 .combat-hand-card:not(:disabled):hover .card-face { border-color: #d0e09e; }
-.combat-hand-card.unaffordable .card-face { opacity: .6; }
+.combat-hand-card.unaffordable .card-face { opacity: 1; filter: brightness(.58) saturate(.75); }
 .hand-empty { align-self: center; font-size: 15px; color: #99b084; padding-bottom: 50px; }
 .sigil-detail-heading { display: flex; gap: 20px; align-items: center; margin-bottom: 25px; }
 .sigil-detail-heading > .creature { width: 110px; height: 110px; }
