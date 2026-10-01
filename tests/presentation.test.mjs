@@ -3,6 +3,27 @@ import assert from 'node:assert/strict'
 import { handLayout } from '../src/features/battle/handLayout.ts'
 import { sacrificeSchedule } from '../src/features/battle/sacrificeSchedule.ts'
 import { cardBend } from '../src/features/battle/cardBend.ts'
+import { projectTable, unprojectTable, tableBounds, tableWidth, tableHeight, tableScale } from '../src/features/battle/tableLayout.ts'
+
+test('table projection round-trips board and off-table flight points', () => {
+  for (const point of [{ x: 0, y: 0 }, { x: tableWidth, y: tableHeight }, { x: 320, y: 220 }, { x: -160, y: 850 }]) {
+    const restored = unprojectTable(projectTable(point))
+    assert.ok(Math.abs(restored.x - point.x) < .000001)
+    assert.ok(Math.abs(restored.y - point.y) < .000001)
+  }
+  const far = projectTable({ x: tableWidth, y: 0 }).x - projectTable({ x: 0, y: 0 }).x
+  const near = projectTable({ x: tableWidth, y: tableHeight }).x - projectTable({ x: 0, y: tableHeight }).x
+  assert.ok(near > far)
+})
+
+test('all four rows and deck space fit both viewport dimensions without enlarging cards', () => {
+  for (const [width, height] of [[1000, 700], [750, 480], [520, 360], [374, 420]]) {
+    const scale = tableScale(width, height)
+    assert.ok(scale > 0 && scale <= 1)
+    assert.ok(tableBounds.width * scale <= width - 48 + .000001)
+    assert.ok(tableBounds.height * scale <= height - 48 + .000001)
+  }
+})
 
 test('attack card arches away from the table at its center and flattens on return', () => {
   const middle = cardBend(0, 200, 1.65)

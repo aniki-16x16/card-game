@@ -1,5 +1,6 @@
 import { motionScope } from './motion'
 import { cardBend } from './cardBend'
+import { flightTable, flightRect, mountFlight } from './tableFlight'
 
 // 攻击调参入口：所有 duration 单位都是毫秒，越大越慢。
 const ATTACK = {
@@ -21,7 +22,8 @@ const ATTACK = {
 export async function attackFlight(source: HTMLElement, target: HTMLElement, air: boolean, signal: AbortSignal) {
   const face = source.querySelector<HTMLElement>('.card-face')
   if (!face || signal.aborted) return
-  const start = source.getBoundingClientRect()
+  const table = flightTable(source)
+  const start = flightRect(source, table)
   const visibility = source.style.visibility
   const motion = motionScope(signal)
   const stage = document.createElement('div')
@@ -48,21 +50,24 @@ export async function attackFlight(source: HTMLElement, target: HTMLElement, air
     strip.append(surface); card.append(strip)
     return strip
   })
-  stage.append(shadow, card); document.body.append(stage)
+  stage.append(shadow, card)
+  const flight = mountFlight(stage, table)
   source.style.visibility = 'hidden'
   // travel：沿攻击路径的比例，0 为原位、1 为目标、负值为向后蓄力。
   // lift：离桌高度（px）；bend：弯曲弧度，0 为平面；pitch：整张牌的俯仰角（度）。
   // pitch 根据攻击方向自动翻转，因此双方共用同一组姿态。
   const pose = { travel: 0, lift: 0, bend: 0, pitch: 0 }
   const render = () => {
+    flight.sync()
     // 每帧重新读取起点和目标，镜头移动或窗口缩放后也能跟随正确位置。
-    const origin = source.getBoundingClientRect(), end = target.getBoundingClientRect()
+    const origin = flightRect(source, table), end = flightRect(target, table)
     const dx = end.left + end.width / 2 - origin.left - origin.width / 2
     const dy = end.top + end.height / 2 - origin.top - origin.height / 2
     const direction = dy < 0 ? -1 : 1
     const x = origin.left - start.left + dx * pose.travel
     const y = origin.top - start.top + dy * pose.travel
-    card.style.transform = `translate3d(${x}px,${y - pose.lift * ATTACK.liftProjection}px,${pose.lift}px) rotateX(${pose.pitch * direction}deg)`
+    // 桌内 Z 高度由真实桌面投影产生上移，不再叠加旧的屏幕位移模拟。
+    card.style.transform = `translate3d(${x}px,${y - pose.lift * (table ? 0 : ATTACK.liftProjection)}px,${pose.lift}px) rotateX(${pose.pitch * direction}deg)`
     strips.forEach((strip, index) => {
       const v = ((index + .5) / count - .5) * start.height
       const curve = cardBend(v, start.height, pose.bend)
@@ -99,13 +104,15 @@ export async function attackFlight(source: HTMLElement, target: HTMLElement, air
     const { duration: recoilDuration, ease: recoilEase, ...recoilPose } = ATTACK.recoil
     await Promise.all([
       phase(recoilPose, recoilDuration, recoilEase),
-      motion.tween(target, { keyframes: [{ filter: 'brightness(1.9)' }, { filter: 'brightness(1)' }], duration: ATTACK.flash }),
+      // 天平反馈交给游标移动；只有受击卡牌播放命中闪光。
+      target.closest('.balance-ruler') ? Promise.resolve() :
+        motion.tween(target, { keyframes: [{ filter: 'brightness(1.9)' }, { filter: 'brightness(1)' }], duration: ATTACK.flash }),
     ])
     if (signal.aborted) return
     // 6. 返回：减速回到原位，同时放平牌面；伤害反馈由后续 hit 动作播放。
     await phase({ travel: 0, lift: 0, bend: 0, pitch: 0 }, ATTACK.return.duration, ATTACK.return.ease)
   } finally {
     // 完成、重开或中断时，销毁临时节点并恢复原牌，避免残留阴影或隐藏的牌。
-    motion.dispose(); stage.remove(); source.style.visibility = visibility
+    motion.dispose(); flight.dispose(); source.style.visibility = visibility
   }
 }

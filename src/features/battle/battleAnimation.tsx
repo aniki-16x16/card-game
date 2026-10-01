@@ -9,6 +9,8 @@ import type { BattleAction, Battle, BattleFrame } from '../../domain/game'
 const find = (id?: string) => id ? document.querySelector<HTMLElement>(`[data-motion="${CSS.escape(id)}"]`) : null
 
 export async function animateBattleAction(action: BattleAction, signal: AbortSignal, state: Battle, retained?: (() => void)[]) {
+  // 天平受击只由 BalanceScale 的游标移动反馈，不生成数字，也不抖动刻度。
+  if (action.kind === 'hit' && (action.target === 'life-player' || action.target === 'life-enemy')) return
   const source = find(action.source), target = find(action.target)
   if (!target || signal.aborted) return
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -27,7 +29,7 @@ export async function animateBattleAction(action: BattleAction, signal: AbortSig
     if (action.kind === 'deploy' || action.kind === 'advance') {
       const [side, row, col] = action.target.split('-')
       const card = state[side as 'player' | 'enemy'][Number(row)][Number(col)]
-      if (card) await deployFlight(source, target, renderToStaticMarkup(<CardFace card={card}/>), action.kind === 'advance', signal)
+      if (card) await deployFlight(source, target, renderToStaticMarkup(<CardFace card={card} compact/>), action.kind === 'advance', signal)
     } else if (action.kind === 'attack' && source) {
       // 普通模式的攻击节奏与姿态在 attackFlight.ts 顶部 ATTACK 中调整。
       // 系统选择减少动态效果时，只闪亮原卡牌，不播放飞行与蓄力。
