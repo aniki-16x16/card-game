@@ -3,6 +3,43 @@ import type { Species } from "../../domain/game";
 
 // Stable, authored palettes: artwork must never depend on the battle seed or card ID.
 export const palettes: Record<Species, [string, string]> = {
+  wolfpup: ["#c1c7b1", "#e9e4ce"],
+  hound: ["#ac8c72", "#ead3ae"],
+  arcticfox: ["#e6e9dc", "#b7cbd1"],
+  jackal: ["#b99f66", "#f3cc87"],
+  stag: ["#b8a079", "#e8d4ad"],
+  reindeer: ["#c5ad87", "#ede2c8"],
+  elk: ["#ad8969", "#e0c394"],
+  rat: ["#a89b8e", "#dbc8b9"],
+  dormouse: ["#ccbda5", "#f4dcc6"],
+  capybara: ["#c4a17b", "#e8ca9e"],
+  hare: ["#b9957d", "#eac8ab"],
+  snowhare: ["#e5e9db", "#b6c7cb"],
+  jackrabbit: ["#c8a879", "#f0d7ac"],
+  soldierant: ["#a07855", "#eed19b"],
+  wingedant: ["#a6afbd", "#e2e8d8"],
+  antqueen: ["#ab7861", "#e2b278"],
+  honeybee: ["#ddad55", "#fff0b7"],
+  bumblebee: ["#c8a963", "#f8dda5"],
+  scoutbee: ["#e9c76e", "#cee7d8"],
+  guardbee: ["#b79965", "#e6d2a0"],
+  minnow: ["#b2d1c8", "#e3ede0"],
+  carp: ["#d7ae73", "#f4d293"],
+  trout: ["#9bc8c1", "#d0e6d1"],
+  piranha: ["#b8bf9b", "#df887b"],
+  eel: ["#9aaebe", "#d7d4b1"],
+  pufferfish: ["#c9bd7d", "#f0e3b9"],
+  sturgeon: ["#adb9a7", "#ded4b1"],
+  shark: ["#92afc0", "#d8e5d8"],
+  bearcub: ["#b7a084", "#e3cbaa"],
+  blackbear: ["#8e9688", "#d3bfa0"],
+  polarbear: ["#e1e3d7", "#b5c6c6"],
+  piglet: ["#c8ac96", "#eadac1"],
+  forestboar: ["#9e8d7a", "#d8c19a"],
+  warthog: ["#b99c78", "#ebd2aa"],
+  sheep: ["#e3dbc2", "#b0b7a2"],
+  ram: ["#baa17e", "#ede0bb"],
+  ibex: ["#b7b3a0", "#e5d5b8"],
   viper: ["#b3a1c5", "#ebc194"],
   wolf: ["#d5dfc3", "#718f89"],
   deer: ["#dabd83", "#f5e0aa"],
@@ -67,6 +104,90 @@ export const palettes: Record<Species, [string, string]> = {
 };
 
 export const variants: Partial<Record<Species, ReactNode>> = {
+  wolfpup: <path className="marking" d="m38 62 22 14 22-14-8 24H46Z" />,
+  hound: <path className="marking" d="M45 45h12v33H43Zm21 0h13v33H64Z" />,
+  arcticfox: <path className="marking" d="m26 48 34 19 34-19-18 37H44Z" />,
+  jackal: <path d="m29 39-9-32 25 26m34 1 23-27-5 38" />,
+  stag: (
+    <path
+      className="outline-mark"
+      d="M39 34 21 9m11 18L9 22m18-5V3m54 31 18-25M88 27l23-5m-18-5V3"
+    />
+  ),
+  reindeer: <path className="marking" d="m30 51 30 24 30-24-10 36H40Z" />,
+  elk: <path d="M39 32 15 28 8 11l17 6L20 2l19 19Zm42 0 24-4 7-17-17 6 5-15-19 19Z" />,
+  rat: <path className="outline-mark" d="M80 85q37 18 29-17m-71-8-23 7m23-1L12 81" />,
+  dormouse: <path className="marking" d="M35 48q10-9 18 0l-8 14Zm32 0q10-9 18 0l-10 14Z" />,
+  capybara: <path className="marking" d="M35 73q25-10 50 0v18H35Z" />,
+  hare: <path className="marking" d="M35 5h13v33H35Zm36 0h13v33H71Z" />,
+  snowhare: <path className="marking" d="M31 6h19v10H31Zm39 0h19v10H70Zm-28 68h36v18H42Z" />,
+  jackrabbit: <path d="M32 41 22 4l20 2 9 36Zm37 0L78 3l21 1-12 38Z" />,
+  soldierant: <path d="m43 28-9 10 13 10m30-20 9 10-13 10" />,
+  wingedant: <path className="marking" d="M48 53Q6 7 12 56l33 15Zm24 0q42-46 36 3L75 71Z" />,
+  antqueen: (
+    <>
+      <ellipse cx="60" cy="84" rx="28" ry="25" />
+      <path className="marking" d="m43 20 1-16 16 10L76 4l1 16Z" />
+    </>
+  ),
+  honeybee: <path className="marking" d="m41 88 19 20 19-20Z" />,
+  bumblebee: <ellipse className="marking" cx="60" cy="64" rx="29" ry="21" />,
+  scoutbee: <path className="outline-mark" d="m45 19-14-9m44 9 14-9M40 52h40" />,
+  guardbee: <path className="marking" d="m42 45 18 9 18-9-5 29-13 9-13-9Z" />,
+  minnow: <path className="outline-mark" d="M32 59h42" />,
+  carp: (
+    <path className="outline-mark" d="m42 45 8 8-8 8 8 8-8 8m16-37 8 9-8 9 8 9-8 9M106 64l8 11" />
+  ),
+  trout: (
+    <g className="marking">
+      <circle cx="45" cy="51" r="3" />
+      <circle cx="57" cy="43" r="3" />
+      <circle cx="63" cy="67" r="3" />
+      <circle cx="74" cy="49" r="3" />
+    </g>
+  ),
+  piranha: <path className="marking" d="m88 66 7 9 6-9 6 5 3-10Z" />,
+  eel: <path className="outline-mark" d="M29 59q23-12 40 0t26 0" />,
+  pufferfish: (
+    <path
+      className="outline-mark"
+      d="m38 29 3 10m18-17v12m18-8-3 10m-36 43-4 11m24-4v12m20-14 5 10"
+    />
+  ),
+  sturgeon: <path className="marking" d="m33 58 8-7 8 7 8-7 8 7 8-7v10H33Z" />,
+  shark: <path d="m50 38 6-34 25 32Zm44 32 7 10 8-17Z" />,
+  bearcub: <path className="marking" d="M39 76q21-15 42 0v16H39Z" />,
+  blackbear: <path className="marking" d="m34 79 26 17 26-17-8-9-18 12-18-12Z" />,
+  polarbear: <path className="outline-mark" d="m32 74 16 10m40-10L72 84" />,
+  piglet: (
+    <>
+      <ellipse className="marking" cx="60" cy="75" rx="18" ry="13" />
+      <circle className="eye" cx="53" cy="75" r="3" />
+      <circle className="eye" cx="67" cy="75" r="3" />
+    </>
+  ),
+  forestboar: (
+    <>
+      <ellipse className="marking" cx="60" cy="72" rx="21" ry="15" />
+      <path d="M38 81 27 58l1 23Zm44 0 11-23-1 23Z" />
+    </>
+  ),
+  warthog: (
+    <>
+      <ellipse className="marking" cx="60" cy="71" rx="22" ry="14" />
+      <path d="M34 83q-20-8-13-28l13 16Zm52 0q20-8 13-28L86 71Z" />
+      <circle cx="34" cy="55" r="7" />
+      <circle cx="86" cy="55" r="7" />
+    </>
+  ),
+  sheep: (
+    <path
+      className="marking"
+      d="M27 38q-14-23 4-27 9-16 20-3 16-13 26 0 20-8 19 15l-9 20-10-12-16 10-17-11Z"
+    />
+  ),
+  ram: <path d="M39 40Q6 7 8 42q2 21 26 15L21 39l-1-16Zm42 0q33-33 31 2-2 21-26 15l13-18 1-16Z" />,
+  ibex: <path d="M37 36Q5 22 20 1L35 8l-7 9 18 14Zm46 0q32-14 17-35L85 8l7 9-18 14Z" />,
   viper: <path className="outline-mark" d="m45 42 11 4-3 12 18 3-2 12 16 4-7 13" />,
   coyote: (
     <>
@@ -320,6 +441,31 @@ export const variants: Partial<Record<Species, ReactNode>> = {
 
 // Different body plans get their own silhouette, rather than recolouring an unrelated animal.
 export const silhouettes: Partial<Record<Species, ReactNode>> = {
+  hound: (
+    <>
+      <path d="M35 35Q60 19 85 35l-7 46-18 19-18-19Z" />
+      <path d="M36 36Q13 20 18 74l18 12 7-35Zm48 0q23-16 18 38L84 86l-7-35Z" />
+      <circle cx="47" cy="55" r="4" className="eye" />
+      <circle cx="73" cy="55" r="4" className="eye" />
+      <path d="m51 79 18 0-9 9Z" className="eye" />
+    </>
+  ),
+  capybara: (
+    <>
+      <path d="M25 36Q60 17 95 36v44q-3 21-35 21T25 80Z" />
+      <circle cx="33" cy="33" r="9" />
+      <circle cx="87" cy="33" r="9" />
+      <circle cx="41" cy="60" r="4" className="eye" />
+      <circle cx="79" cy="60" r="4" className="eye" />
+      <path d="M46 82h28" className="outline-mark" />
+    </>
+  ),
+  eel: (
+    <>
+      <path d="M11 75q18-39 48-27 23 9 36-20l18 8-2 19-22 9q-8 20-30 12-28-11-48-1Z" />
+      <circle cx="102" cy="41" r="4" className="eye" />
+    </>
+  ),
   hedgehog: (
     <>
       <path d="m13 74 1-22 12 6 2-23 14 13 7-26 13 20 17-20 6 28 20-4-8 24 16 16-23 11H32Z" />

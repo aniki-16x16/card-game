@@ -1,7 +1,14 @@
 import { SigilIcon } from "../../components/cards/SigilIcon";
 import { useState } from "react";
 import { CardFace } from "../../components/cards/Cards";
-import { allCreatures, allTokens, SIGILS, TRIBES, sigils } from "../../domain/game";
+import {
+  allCreatures,
+  allTokens,
+  SIGILS,
+  TRIBES,
+  sigils,
+  sigilDescription,
+} from "../../domain/game";
 import type { Tribe } from "../../domain/game";
 import "../../app/App.css";
 import "./CreatureCatalog.css";
@@ -17,7 +24,7 @@ export function CreatureCatalog() {
       (tribe === "all" || card.tribe === tribe) &&
       (cost === "all" || card.cost === Number(cost)) &&
       `${card.name} ${sigils(card)
-        .map((s) => SIGILS[s].name + SIGILS[s].description)
+        .map((s) => SIGILS[s].name + sigilDescription(card, s))
         .join(" ")}`.includes(search.trim()),
   );
   return (
@@ -27,7 +34,8 @@ export function CreatureCatalog() {
           <span className="eyebrow">VERDANT PACT / BESTIARY</span>
           <h1>生物图鉴</h1>
           <p>
-            {allCreatures().length} 张基础牌 · 6 个类别 · {Object.keys(SIGILS).length} 种印记
+            {allCreatures().length} 张基础牌 · {Object.keys(TRIBES).length} 个种族 ·{" "}
+            {Object.keys(SIGILS).length} 种印记
           </p>
         </div>
       </header>
@@ -88,7 +96,7 @@ export function CreatureCatalog() {
                       <SigilIcon sigil={sigil} /> {SIGILS[sigil].name}{" "}
                       <small>转移占用 {SIGILS[sigil].weight} 容量</small>
                     </strong>
-                    {SIGILS[sigil].description}
+                    {sigilDescription(card, sigil)}
                   </p>
                 ))
               ) : (

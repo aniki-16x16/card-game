@@ -29,19 +29,33 @@ const unit = (species, id, patch = {}) => {
   return { ...c, hp: c.health, age: 0, used: [], base: structuredClone(c), ...patch };
 };
 
-test("card pool has 55 distinct cards, requested tribes and cost curve, all effects are defined", () => {
+test("card pool has 92 distinct cards across 15 populated tribes and all effects are defined", () => {
   const cards = allCreatures();
-  assert.equal(cards.length, 55);
-  assert.equal(new Set(cards.map((c) => c.species)).size, 55);
+  assert.equal(cards.length, 92);
+  assert.equal(new Set(cards.map((c) => c.species)).size, 92);
   assert.deepEqual(
     [0, 1, 2, 3].map((n) => cards.filter((c) => c.cost === n).length),
-    [14, 25, 12, 4],
+    [14, 43, 27, 8],
   );
   assert.deepEqual(
-    ["beast", "bird", "insect", "reptile", "spider", "special"].map(
-      (t) => cards.filter((c) => c.tribe === t).length,
-    ),
-    [14, 12, 12, 11, 4, 2],
+    [
+      "canine",
+      "deer",
+      "rodent",
+      "rabbit",
+      "bear",
+      "pig",
+      "sheep",
+      "bird",
+      "ant",
+      "bee",
+      "insect",
+      "fish",
+      "reptile",
+      "spider",
+      "special",
+    ].map((t) => cards.filter((c) => c.tribe === t).length),
+    [8, 5, 5, 4, 4, 4, 4, 12, 5, 5, 9, 8, 11, 4, 4],
   );
   for (const card of cards) {
     assert.ok(card.health > 0);

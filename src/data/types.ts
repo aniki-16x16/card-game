@@ -1,7 +1,16 @@
 export const TRIBES = {
-  beast: "兽类",
+  canine: "犬科",
+  deer: "鹿类",
+  rodent: "鼠类",
+  rabbit: "兔类",
+  bear: "熊类",
+  pig: "猪类",
+  sheep: "羊类",
   bird: "鸟类",
+  ant: "蚁族",
+  bee: "蜂族",
   insect: "虫族",
+  fish: "鱼类",
   reptile: "爬行类",
   spider: "蛛类",
   special: "特殊生物",
@@ -29,8 +38,46 @@ export type Art =
   | "snake"
   | "spider"
   | "squirrel"
-  | "egg";
+  | "egg"
+  | "fish";
 export type Species =
+  | "wolfpup"
+  | "hound"
+  | "arcticfox"
+  | "jackal"
+  | "stag"
+  | "reindeer"
+  | "elk"
+  | "rat"
+  | "dormouse"
+  | "capybara"
+  | "hare"
+  | "snowhare"
+  | "jackrabbit"
+  | "soldierant"
+  | "wingedant"
+  | "antqueen"
+  | "honeybee"
+  | "bumblebee"
+  | "scoutbee"
+  | "guardbee"
+  | "minnow"
+  | "carp"
+  | "trout"
+  | "piranha"
+  | "eel"
+  | "pufferfish"
+  | "sturgeon"
+  | "shark"
+  | "bearcub"
+  | "blackbear"
+  | "polarbear"
+  | "piglet"
+  | "forestboar"
+  | "warthog"
+  | "sheep"
+  | "ram"
+  | "ibex"
   | "viper"
   | "wolf"
   | "deer"

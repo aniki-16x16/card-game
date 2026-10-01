@@ -12,6 +12,15 @@ export function Creature({
   small?: boolean;
 }) {
   const shapes: Record<Art, ReactNode> = {
+    fish: (
+      <>
+        <path d="M27 60 7 35v50ZM24 60Q62 15 110 60 62 105 24 60Z" />
+        <path d="m46 39 14-25 18 20m-31 51 17 19 11-22" />
+        <path d="M78 40q-15 20 0 40m-21-20-13 18 24-6Z" className="shade" />
+        <circle cx="91" cy="53" r="5" className="eye" />
+        <path d="m101 66 8-4" className="outline-mark" />
+      </>
+    ),
     mouse: (
       <>
         <circle cx="35" cy="30" r="18" />
@@ -258,7 +267,7 @@ export function Creature({
       <g
         className="silhouette"
         transform={
-          species === "youngRabbit" || species === "spiderling"
+          ["youngRabbit", "spiderling", "wolfpup", "bearcub", "piglet", "minnow"].includes(species)
             ? "translate(15 18) scale(.75)"
             : undefined
         }

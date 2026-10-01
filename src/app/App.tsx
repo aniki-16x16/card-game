@@ -27,6 +27,7 @@ import {
   load,
   planRound,
   sigils,
+  sigilDescription,
   startBattle,
 } from "../domain/game";
 import type { Battle, BattleFrame, Card, Unit } from "../domain/game";
@@ -309,7 +310,7 @@ export default function App() {
                 </span>
                 <div>
                   <h3>{SIGILS[s].name}</h3>
-                  <p>{SIGILS[s].description}</p>
+                  <p>{sigilDescription(inspected, s)}</p>
                 </div>
               </div>
             ))}

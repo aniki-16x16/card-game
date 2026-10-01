@@ -71,7 +71,7 @@ test("rear melee cannot attack; ranged rear can damage an empty lane", () => {
 test("support adds attack only to the same-column front", () => {
   const s = quietBattle();
   s.player[0][0] = unit(0, "wolf");
-  s.player[1][0] = unit(1, "deer");
+  s.player[1][0] = unit(1, "support", { native: ["support"] });
   assert.equal(resolveRound(s).balance, 4);
 });
 test("armor reduces damage and thorns can kill the attacker after a lethal hit", () => {
@@ -507,7 +507,7 @@ test("zero-attack squirrels do not attack or trigger thorns; support can enable 
   const plan = planRound(s);
   assert.equal(plan.frames.filter((f) => f.action.kind === "attack").length, 0);
   assert.equal(plan.state.player[0][0].hp, 1);
-  s.player[1][0] = unit(1, "support");
+  s.player[1][0] = unit(1, "support", { native: ["support"] });
   const boosted = planRound(s);
   assert.equal(boosted.frames.filter((f) => f.action.kind === "attack").length, 1);
   assert.equal(boosted.state.player[0][0].id, "support");

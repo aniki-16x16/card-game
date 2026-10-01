@@ -20,7 +20,7 @@ import "../src/features/battle/BattleView.css";
 import "../src/features/battle/BattleCamera.css";
 import "../src/features/battle/BattleAnimation.css";
 
-const scenes = ["挖洞", "潜水", "推搡", "补位", "威吓"] as const;
+const scenes = ["挖洞", "潜水", "推搡", "补位", "威吓", "成长"] as const;
 type Scene = (typeof scenes)[number];
 function unit(species: Species, id: string, patch: Partial<Unit> = {}): Unit {
   const card = creature(species, id);
@@ -33,10 +33,10 @@ function sample(scene: Scene): Battle {
   s.hand = [];
   if (scene === "挖洞") {
     s.player[0][2] = unit("mouse", "attacker");
-    s.enemy[1][4] = unit("turtle", "burrower", { hp: 5, health: 5 });
+    s.enemy[1][4] = unit("hound", "burrower", { hp: 5, health: 5 });
   } else if (scene === "潜水") {
-    s.player[0][2] = unit("gecko", "p", { hp: 3, health: 3 });
-    s.enemy[0][2] = unit("gecko", "e", { hp: 3, health: 3, submerged: true });
+    s.player[0][2] = unit("carp", "p");
+    s.enemy[0][2] = unit("carp", "e", { submerged: true });
   } else if (scene === "推搡") {
     s.player[0][3] = unit("boar", "pusher", { attack: 0 });
     s.player[0][4] = unit("mouse", "wall", { attack: 0 });
@@ -45,6 +45,10 @@ function sample(scene: Scene): Battle {
     s.player[0][2] = unit("mouse", "victim");
     s.enemy[0][2] = unit("wolf", "attacker");
     s.hand = [creature("quail", "replacement"), creature("beetle", "summon")];
+  } else if (scene === "成长") {
+    s.player[0][0] = unit("wolfpup", "pup");
+    s.player[0][2] = unit("fawn", "fawn");
+    s.player[0][4] = unit("carp", "fish");
   } else {
     s.player[0][2] = unit("wolf", "target");
     s.enemy[0][2] = unit("iguana", "intimidator");

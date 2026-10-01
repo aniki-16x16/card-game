@@ -17,4 +17,8 @@ export const rulesDeck = () =>
     "ant",
     "goat",
     "experiment",
-  ].map((species, index) => creature(species, `starter-${index}`));
+  ].map((species, index) => {
+    const card = creature(species, `starter-${index}`);
+    // These fixtures exercise support/transfer independently of the authored deer card.
+    return species === "deer" ? { ...card, native: ["support"] } : card;
+  });

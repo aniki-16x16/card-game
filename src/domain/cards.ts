@@ -48,8 +48,16 @@ export function grownForm(card: Card): Card | undefined {
     name: target.name,
     art: target.art,
     tribe: target.tribe,
+    cost: target.cost,
     attack: card.attack + target.attack - original.attack,
     health: card.health + target.health - original.health,
     native: [...new Set([...card.native.filter((s) => s !== "growth"), ...target.native])],
   };
+}
+
+export function sigilDescription(card: Card, sigil: Sigil): string {
+  const adult = sigil === "growth" ? grownForm(card) : undefined;
+  if (!adult) return SIGILS[sigil].description;
+  const abilities = adult.native.map((s) => SIGILS[s].name).join("、");
+  return `一回合后长大为${adult.name}（${adult.cost} 费，${adult.attack}/${adult.health}${abilities ? `，${abilities}` : ""}）。`;
 }

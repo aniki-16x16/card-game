@@ -1,7 +1,7 @@
 import { Heart, Swords } from "lucide-react";
 import { SigilIcon } from "./SigilIcon";
 import { Creature } from "../creatures/Creature";
-import { SIGILS, TRIBES, sigils } from "../../domain/game";
+import { SIGILS, TRIBES, sigils, sigilDescription } from "../../domain/game";
 import type { Card, Unit } from "../../domain/game";
 
 export function CardFace({
@@ -44,7 +44,7 @@ export function CardFace({
               key={s}
               aria-label={SIGILS[s].name}
               className={card.added.includes(s) ? "inherited" : ""}
-              title={`${SIGILS[s].name}：${SIGILS[s].description}`}
+              title={`${SIGILS[s].name}：${sigilDescription(card, s)}`}
             >
               <SigilIcon sigil={s} />
               {!compact && sigils(card).length <= 2 && <small>{SIGILS[s].name}</small>}

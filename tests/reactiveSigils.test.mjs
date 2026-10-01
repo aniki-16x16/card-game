@@ -13,6 +13,9 @@ import {
 
 const unit = (species, id, patch = {}) => {
   const card = creature(species, id);
+  // Explicit rule fixtures survive changes to the authored turtle/gecko cards.
+  if (species === "turtle") card.native = ["burrow"];
+  if (species === "gecko") card.native = ["submerge"];
   return { ...card, hp: card.health, age: 0, used: [], base: structuredClone(card), ...patch };
 };
 const setup = () => {
@@ -371,7 +374,7 @@ test("intimidate clamps zero damage, combines with positional buffs, and suppres
   e.act("player", "attacker");
   assert.equal(frames.length, 0);
   assert.equal(s.enemy[0][2].hp, 3);
-  s.player[1][2] = unit("deer", "support");
+  s.player[1][2] = unit("reindeer", "support");
   s.player[0][1] = unit("greywolf", "leader");
   assert.equal(attackPower(s, "player", 0, 2), 2);
   e.act("player", "attacker");

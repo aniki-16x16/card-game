@@ -5,7 +5,7 @@ export const tokenTemplates: Record<TokenKind, Omit<Card, "id" | "added">> = {
   youngRabbit: {
     species: "youngRabbit",
     name: "幼兔",
-    tribe: "beast",
+    tribe: "rabbit",
     art: "rabbit",
     attack: 0,
     health: 1,
@@ -53,7 +53,7 @@ export const tokenTemplates: Record<TokenKind, Omit<Card, "id" | "added">> = {
   bee: {
     species: "bee",
     name: "蜂",
-    tribe: "insect",
+    tribe: "bee",
     art: "bee",
     attack: 1,
     health: 1,
