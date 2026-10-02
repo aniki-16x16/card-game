@@ -38,7 +38,6 @@ export function RitualEvent({
   const [donor, setDonor] = useState("");
   const [target, setTarget] = useState(visit.targetId ?? "");
   const [picking, setPicking] = useState<"donor" | "target" | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const locked = useRef(false);
   const root = useRef<HTMLDivElement>(null);
@@ -56,13 +55,47 @@ export function RitualEvent({
     : kind === "remove" && run.deck.length <= 6
       ? "牌组至少保留 6 张。"
       : undefined;
-  const cancel = () => {
-    if (selected) {
-      setSelected(null);
-      return true;
+  async function hideHand(signal: AbortSignal, retained: (() => void)[]) {
+    const hand = root.current?.querySelector<HTMLElement>(".event-hand");
+    if (!hand) return;
+    const style = getComputedStyle(hand);
+    const start = { transform: style.transform, opacity: Number(style.opacity) };
+    hand.style.animation = "none";
+    const motion = motionScope(signal);
+    try {
+      await motion.tween(hand, {
+        transform: [start.transform, "translateY(140%)"],
+        opacity: [start.opacity, 0],
+        duration: matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 230,
+        ease: "in(3)",
+      });
+    } finally {
+      if (signal.aborted) motion.dispose();
+      else retained.push(() => motion.dispose());
     }
+  }
+  async function closeHand() {
+    if (locked.current) return;
+    locked.current = true;
+    controller.current = new AbortController();
+    const signal = controller.current.signal;
+    const retained: (() => void)[] = [];
+    flushSync(() => setBusy(true));
+    try {
+      await hideHand(signal, retained);
+      if (!signal.aborted)
+        flushSync(() => {
+          setPicking(null);
+          setBusy(false);
+        });
+    } finally {
+      retained.forEach((cleanup) => cleanup());
+      locked.current = false;
+    }
+  }
+  const cancel = () => {
     if (picking) {
-      setPicking(null);
+      void closeHand();
       return true;
     }
     if (!visit.done && (donor || target) && !visit.targetId) {
@@ -72,38 +105,47 @@ export function RitualEvent({
     }
     return false;
   };
-  async function slotClick(slot: "donor" | "target") {
+  function slotClick(slot: "donor" | "target") {
     if (locked.current || visit.done || (visit.targetId && !isTransfer)) return;
-    if (!selected || picking !== slot) {
-      setPicking(slot);
-      setSelected(null);
-      return;
-    }
-    const card = choices.find((card) => card.id === selected);
-    const destination = root.current?.querySelector<HTMLElement>(`[data-ritual-slot="${slot}"]`);
+    if (picking === slot) void closeHand();
+    else setPicking(slot);
+  }
+  async function placeCard(id: string | null) {
+    if (!id || !picking || locked.current || visit.done) return;
+    const slot = picking;
+    const card = choices.find((card) => card.id === id);
+    const destination = root.current?.querySelector<HTMLElement>(
+      `[data-ritual-slot="${slot}"] .ritual-card-surface`,
+    );
     const source = root.current?.querySelector<HTMLElement>(
-      `[data-motion="hand-${CSS.escape(selected)}"]`,
+      `[data-motion="hand-${CSS.escape(id)}"]`,
     );
     if (!card || !destination || !source) return;
+    // The landing copy must already contain the same sigils as the final preview.
+    const nextPreview = isTransfer && slot === "target" && a ? transfer(run.deck, donor, id) : null;
+    const landing =
+      nextPreview && !nextPreview.error ? nextPreview.deck.find((c) => c.id === id)! : card;
     locked.current = true;
     controller.current = new AbortController();
     const signal = controller.current.signal;
     const retained: (() => void)[] = [];
     flushSync(() => setBusy(true));
     try {
-      await deployFlight(
+      // Flight captures the hand pose and hides the source before the hand starts retreating.
+      const flight = deployFlight(
         source,
         destination,
-        renderToStaticMarkup(<CardFace card={card} />),
+        renderToStaticMarkup(<CardFace card={landing} />),
         false,
         signal,
         retained,
+        "ritual",
       );
+      await Promise.all([flight, hideHand(signal, retained)]);
       if (signal.aborted) return;
       flushSync(() => {
         if (slot === "donor") setDonor(card.id);
         else setTarget(card.id);
-        setSelected(null);
         setPicking(null);
         setBusy(false);
       });
@@ -154,16 +196,18 @@ export function RitualEvent({
         className={"table-card-slot " + (picking === name ? "awaiting-card" : "")}
         data-ritual-slot={name}
         disabled={busy || visit.done || !!visit.targetId}
-        aria-label={selected && picking === name ? `放置到${label}` : `选择${label}`}
+        aria-label={`选择${label}`}
         onClick={() => void slotClick(name)}
       >
-        {card ? (
-          <CardFace card={card} onInspect={onInspect} />
-        ) : (
-          <span className="slot-etching">
-            {name === "donor" ? <Sparkles /> : kind === "remove" ? <Flame /> : <span>◇</span>}
-          </span>
-        )}
+        <div className="ritual-card-surface">
+          {card ? (
+            <CardFace card={card} onInspect={onInspect} />
+          ) : (
+            <span className="slot-etching">
+              {name === "donor" ? <Sparkles /> : kind === "remove" ? <Flame /> : <span>◇</span>}
+            </span>
+          )}
+        </div>
       </button>
       <span className="table-slot-label">{label}</span>
     </div>
@@ -215,14 +259,14 @@ export function RitualEvent({
           </HoldSeal>
         )}
         {picking && !visit.done && (
-          <div className="event-hand">
+          <div className="event-hand" key={picking}>
             <BattleHand
               cards={choices}
-              selected={selected}
+              selected={null}
               available={Infinity}
               disabled={busy}
               settling={busy}
-              onSelect={setSelected}
+              onSelect={(id) => void placeCard(id)}
               onInspect={onInspect}
               emptyText="没有可选的卡牌"
             />

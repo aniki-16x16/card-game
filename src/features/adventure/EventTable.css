@@ -116,12 +116,27 @@
   outline-offset: 5px;
   box-shadow: 0 0 35px #e6c77922;
 }
-.table-card-slot .card-face {
+.ritual-card-surface {
+  width: 100%;
+  height: 100%;
+  font-size: 16px;
+  line-height: normal;
+}
+.table-card-slot > .ritual-card-surface {
+  position: absolute;
+  inset: 0;
+}
+.deploy-card.ritual-card-surface {
+  position: absolute;
+  transform-origin: center;
+  will-change: transform;
+}
+.ritual-card-surface > .card-face {
   height: 100%;
   width: 100%;
   box-shadow: 3px 9px 12px #0008;
 }
-.table-card-slot .card-face > .creature {
+.ritual-card-surface > .card-face > .creature {
   height: 58%;
 }
 .slot-etching {
@@ -171,6 +186,7 @@
   box-shadow: 0 0 24px #d2a35315;
 }
 .hold-seal > svg {
+  position: relative;
   width: 33px;
   height: 33px;
   stroke-width: 1.4;
@@ -192,19 +208,32 @@
   border-radius: 50%;
   opacity: 0;
   transform: scale(0.75);
+  transition:
+    opacity 0.16s,
+    transform 0.16s;
 }
 .holding .seal-ring {
-  animation: seal-fill 0.85s linear forwards;
+  opacity: 1;
+  transform: scale(1);
 }
 .holding {
   box-shadow: 0 0 35px #ffbb5270;
 }
-@keyframes seal-fill {
-  to {
-    transform: scale(1);
-    opacity: 1;
-    box-shadow: 0 0 18px #ffd375;
-  }
+.seal-fill-clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.seal-liquid {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, #9b572d, #e6b859b3);
+  border-top: 2px solid #ffe3a2;
+  transform: scaleY(0);
+  transform-origin: center bottom;
+  will-change: transform;
 }
 .event-hand {
   position: fixed;
@@ -213,7 +242,7 @@
   right: max(20px, calc((100vw - 1000px) / 2));
   bottom: 0;
   height: 190px;
-  animation: hand-arrive 0.3s ease-out;
+  animation: hand-arrive 0.3s ease-out both;
 }
 .event-hand .fan-hand.combat-hand {
   height: 100%;
@@ -225,12 +254,6 @@
   to {
     transform: translateY(0);
   }
-}
-.deploy-card .combat-slot > .card-face:not(.compact) {
-  height: 100%;
-}
-.deploy-card .combat-slot > .card-face:not(.compact) > .creature {
-  height: 58%;
 }
 .event-table .reward-choice {
   max-width: 760px;
@@ -251,6 +274,9 @@
   transition:
     transform 0.25s,
     filter 0.25s;
+}
+.choice-cards[data-dealt="false"] .choice-slot {
+  opacity: 0;
 }
 .event-table .reward-card-action {
   opacity: 0;

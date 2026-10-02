@@ -67,10 +67,28 @@ export function HoldSeal({
 }) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const button = useRef<HTMLButtonElement>(null);
+  const liquid = useRef<HTMLSpanElement>(null);
+  const progress = useRef<Animation | null>(null);
+  const completed = useRef(false);
+  const fill = (full: boolean) => {
+    if (!liquid.current) return;
+    const from = new DOMMatrixReadOnly(getComputedStyle(liquid.current).transform).m22;
+    progress.current?.cancel();
+    progress.current = liquid.current.animate(
+      [{ transform: `scaleY(${from})` }, { transform: `scaleY(${full ? 1 : 0})` }],
+      {
+        duration: full ? 850 : 160,
+        easing: full ? "linear" : "cubic-bezier(.4, 0, .8, 1)",
+        fill: "forwards",
+      },
+    );
+  };
   const cancel = () => {
-    if (timer.current) clearTimeout(timer.current);
+    if (!timer.current || completed.current) return;
+    clearTimeout(timer.current);
     timer.current = null;
     button.current?.classList.remove("holding");
+    fill(false);
   };
   useEffect(() => {
     const stop = () => cancel();
@@ -78,6 +96,7 @@ export function HoldSeal({
     document.addEventListener("visibilitychange", stop);
     return () => {
       if (timer.current) clearTimeout(timer.current);
+      progress.current?.cancel();
       window.removeEventListener("blur", stop);
       document.removeEventListener("visibilitychange", stop);
     };
@@ -86,10 +105,12 @@ export function HoldSeal({
     if (disabled) cancel();
   }, [disabled]);
   const begin = () => {
-    if (disabled || timer.current) return;
+    if (disabled || timer.current || completed.current) return;
     button.current?.classList.add("holding");
+    fill(true);
     timer.current = setTimeout(() => {
       timer.current = null;
+      completed.current = true;
       button.current?.classList.remove("holding");
       onComplete();
     }, 850);
@@ -136,6 +157,9 @@ export function HoldSeal({
       }}
       onContextMenu={(event) => event.preventDefault()}
     >
+      <span className="seal-fill-clip" aria-hidden="true">
+        <span ref={liquid} className="seal-liquid" />
+      </span>
       <span className="seal-ring" aria-hidden="true" />
       {children}
       <small>{label}</small>

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { CardFace } from "../../components/cards/Cards";
 import { TribeSilhouette } from "../../components/creatures/TribeSilhouette";
 import { TRIBES } from "../../domain/game";
@@ -52,7 +53,7 @@ function ChoiceDeal({
   const category = run.visit!.category;
   const choosingCategory = category === undefined && !isCombat(currentNode(run)!.kind);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     alive.current = true;
     return () => {
       alive.current = false;
@@ -60,7 +61,7 @@ function ChoiceDeal({
     };
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (sceneTransitionActive || dealt) return;
     const cards = Array.from(root.current!.querySelectorAll<HTMLElement>(".choice-slot"));
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -88,8 +89,12 @@ function ChoiceDeal({
       .then(() => {
         if (!alive.current) return;
         locked.current = false;
-        setDealt(true);
-        setBusy(false);
+        // Reveal the underlying cards in the same commit that releases the animation.
+        flushSync(() => {
+          setDealt(true);
+          setBusy(false);
+        });
+        animations.current = [];
       })
       .catch(() => {
         /* Unmount cancels the current deal. */
@@ -102,10 +107,22 @@ function ChoiceDeal({
   async function collect(next: Adventure, selected?: string) {
     if (locked.current) return;
     locked.current = true;
-    setBusy(true);
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const cards = Array.from(root.current!.querySelectorAll<HTMLElement>(".choice-slot"));
     const bounds = root.current!.getBoundingClientRect();
+    const poses = cards.map((card) => {
+      const button = card.querySelector<HTMLButtonElement>("button")!;
+      const style = getComputedStyle(button);
+      // Disabling the button must not remove its current hover/press pose mid-flight.
+      button.style.transform = style.transform;
+      button.style.filter = style.filter;
+      button.style.transition = "none";
+      return {
+        transform: getComputedStyle(card).transform,
+        opacity: getComputedStyle(card).opacity,
+      };
+    });
+    flushSync(() => setBusy(true));
     animations.current.forEach((animation) => animation.cancel());
     const collection = cards.map((card, index) => {
       const picked = card.dataset.choice === selected;
@@ -113,7 +130,7 @@ function ChoiceDeal({
       const x = bounds.left + bounds.width / 2 - rect.left - rect.width / 2;
       return card.animate(
         [
-          { opacity: 1, transform: "translate(0, 0) scale(1)" },
+          poses[index],
           {
             opacity: 1,
             transform: picked ? "translate(0, -18px) scale(1.06)" : "translate(0, 0) scale(.96)",
@@ -162,6 +179,7 @@ function ChoiceDeal({
         )}
         <div
           className={"choice-cards " + (selected ? "has-selection" : "")}
+          data-dealt={dealt}
           style={sceneTransitionActive && !dealt ? { visibility: "hidden" } : undefined}
         >
           {choosingCategory

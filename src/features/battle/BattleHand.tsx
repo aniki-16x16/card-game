@@ -39,22 +39,30 @@ export function BattleHand({
   useLayoutEffect(() => {
     // Keep the actual hovered/selected pose until the flight takes ownership.
     if (settling || !root.current) return;
-    const layout = handLayout(cards.length, width, active);
+    const layout = handLayout(cards.length, root.current.clientWidth || width, active);
     const animations = Array.from(
       root.current.querySelectorAll<HTMLElement>(".combat-hand-card"),
-    ).map((element, index) => {
+    ).flatMap((element, index) => {
       const pose = layout[index];
       element.style.width = `${pose.width}px`;
       element.style.marginLeft = `${-pose.width / 2}px`;
       element.style.zIndex = String(pose.z);
-      return animate(element, {
-        translateX: pose.x,
-        translateY: pose.y,
-        rotate: pose.angle,
-        scale: pose.scale,
-        duration: matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 260,
-        ease: "out(4)",
-      });
+      // New cards must be fanned out before their first paint, not animate from a stack.
+      if (!element.dataset.handPlaced) {
+        element.style.transform = `translateX(${pose.x}px) translateY(${pose.y}px) rotate(${pose.angle}deg) scale(${pose.scale})`;
+        element.dataset.handPlaced = "true";
+        return [];
+      }
+      return [
+        animate(element, {
+          translateX: pose.x,
+          translateY: pose.y,
+          rotate: pose.angle,
+          scale: pose.scale,
+          duration: matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 260,
+          ease: "out(4)",
+        }),
+      ];
     });
     return () => animations.forEach((animation) => animation.cancel());
   }, [identities, cards.length, width, active, settling]);

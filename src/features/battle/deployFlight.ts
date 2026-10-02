@@ -9,6 +9,7 @@ export async function deployFlight(
   advance: boolean,
   signal: AbortSignal,
   retained?: (() => void)[],
+  appearance: "battle" | "ritual" = "battle",
 ) {
   if (signal.aborted) return;
   const table = flightTable(target);
@@ -29,8 +30,8 @@ export async function deployFlight(
   stage.className = "deploy-stage";
   stage.setAttribute("aria-hidden", "true");
   const card = document.createElement("div");
-  card.className = "deploy-card camera-world";
-  card.innerHTML = `<div class="combat-slot">${markup}</div>`;
+  card.className = `deploy-card ${appearance === "battle" ? "camera-world" : "ritual-card-surface"}`;
+  card.innerHTML = appearance === "battle" ? `<div class="combat-slot">${markup}</div>` : markup;
   const shadow = document.createElement("div");
   shadow.className = "deploy-shadow";
   for (const node of [card, shadow])
