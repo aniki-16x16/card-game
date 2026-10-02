@@ -365,7 +365,7 @@ export function AdventureView({
       ) : run.visit ? (
         <NodeEvent key={run.visit.nodeId} run={run} onChange={onChange} onInspect={onInspect} />
       ) : (
-        <div className="map-layout">
+        <div className="map-layout" tabIndex={0} role="region" aria-label="冒险路线">
           <MapView run={run} onEnter={onEnter} />
         </div>
       )}

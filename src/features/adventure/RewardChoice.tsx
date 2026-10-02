@@ -13,6 +13,7 @@ import {
 } from "../../domain/adventure";
 import type { Adventure } from "../../domain/adventure";
 import "./RewardChoice.css";
+import { useSceneTransition } from "../../components/transitions/SceneTransitionContext";
 
 export function RewardChoice(props: {
   run: Adventure;
@@ -42,11 +43,21 @@ function ChoiceDeal({
   const alive = useRef(false);
   const animations = useRef<Animation[]>([]);
   const [busy, setBusy] = useState(true);
+  const { active: sceneTransitionActive } = useSceneTransition();
+  const [dealt, setDealt] = useState(false);
   const category = run.visit!.category;
   const choosingCategory = category === undefined && !isCombat(currentNode(run)!.kind);
 
   useEffect(() => {
     alive.current = true;
+    return () => {
+      alive.current = false;
+      animations.current.forEach((animation) => animation.cancel());
+    };
+  }, []);
+
+  useEffect(() => {
+    if (sceneTransitionActive || dealt) return;
     const cards = Array.from(root.current!.querySelectorAll<HTMLElement>(".choice-slot"));
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const bounds = root.current!.getBoundingClientRect();
@@ -73,16 +84,16 @@ function ChoiceDeal({
       .then(() => {
         if (!alive.current) return;
         locked.current = false;
+        setDealt(true);
         setBusy(false);
       })
       .catch(() => {
         /* Unmount cancels the current deal. */
       });
     return () => {
-      alive.current = false;
-      animations.current.forEach((animation) => animation.cancel());
+      deal.forEach((animation) => animation.cancel());
     };
-  }, []);
+  }, [sceneTransitionActive, dealt]);
 
   async function collect(next: Adventure, selected?: string) {
     if (locked.current) return;
@@ -133,7 +144,10 @@ function ChoiceDeal({
           {typeof category === "number" ? `${category} 费` : TRIBES[category]}
         </p>
       )}
-      <div className="choice-cards">
+      <div
+        className="choice-cards"
+        style={sceneTransitionActive && !dealt ? { visibility: "hidden" } : undefined}
+      >
         {choosingCategory
           ? categoryOptions(run).map((option) => (
               <div className="choice-slot" key={option} data-choice={String(option)}>

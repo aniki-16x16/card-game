@@ -1,10 +1,28 @@
 .adventure {
   max-width: 1250px;
-  padding: 16px 32px 32px;
   color: #d9e5c3;
 }
 .map-layout {
   overflow-x: auto;
+}
+/* The full-screen map owns both scroll axes; the document must not scroll too. */
+html:has(.adventure > .map-layout) {
+  overflow: hidden;
+  scrollbar-width: none;
+}
+.adventure:has(> .map-layout) {
+  height: 100dvh;
+  overflow: hidden;
+}
+.adventure > .map-layout {
+  height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+html:has(.adventure > .map-layout)::-webkit-scrollbar,
+.adventure > .map-layout::-webkit-scrollbar {
+  display: none;
 }
 .journey-map {
   position: relative;

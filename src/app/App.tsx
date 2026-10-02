@@ -9,6 +9,8 @@ import { SigilIcon } from "../components/cards/SigilIcon";
 import { BattleView } from "../features/battle/BattleView";
 import { DeckSearch } from "../features/battle/DeckSearch";
 import { AdventureView, MapView } from "../features/adventure/AdventureView";
+import { SceneTransitionProvider } from "../components/transitions/SceneTransition";
+import { useSceneTransition } from "../components/transitions/SceneTransitionContext";
 import {
   newAdventure,
   enterNode,
@@ -80,6 +82,15 @@ function Modal({
   );
 }
 export default function App() {
+  return (
+    <SceneTransitionProvider>
+      <Game />
+    </SceneTransitionProvider>
+  );
+}
+
+function Game() {
+  const sceneTransition = useSceneTransition();
   const [run, setRun] = useState<Adventure>(() => newAdventure());
   const [battle, setBattle] = useState<Battle | null>(null);
   const [inspected, setInspected] = useState<Card | Unit | null>(null);
@@ -119,23 +130,30 @@ export default function App() {
   function enter(id: string) {
     const next = enterNode(run, id);
     if (next === run) return;
-    setRun(next);
-    const node = currentNode(next)!;
-    if (isCombat(node.kind))
-      setBattle(
-        startBattle(
-          next.deck,
-          node.floor,
-          next.seed,
-          node.kind === "boss" ? "boss" : node.kind === "elite" ? "elite" : "normal",
-          battleProfile(next),
-        ),
-      );
-    window.scrollTo({ top: 0 });
+    sceneTransition.start(() => {
+      setRun(next);
+      const node = currentNode(next)!;
+      if (isCombat(node.kind))
+        setBattle(
+          startBattle(
+            next.deck,
+            node.floor,
+            next.seed,
+            node.kind === "boss" ? "boss" : node.kind === "elite" ? "elite" : "normal",
+            battleProfile(next),
+          ),
+        );
+      window.scrollTo({ top: 0 });
+    });
   }
   function acceptRun(next: Adventure) {
-    setRun(next);
-    setInspected(null);
+    const apply = () => {
+      setRun(next);
+      setInspected(null);
+    };
+    if (next.visit?.nodeId !== run.visit?.nodeId || next.status !== run.status)
+      sceneTransition.start(apply);
+    else apply();
   }
   async function play(frames: BattleFrame[], finalState: Battle, markedState?: Battle) {
     if (playing.current) return;
@@ -369,15 +387,17 @@ export default function App() {
               className="primary"
               onClick={() => {
                 animationAbort.current?.abort();
-                setRun(newAdventure(Date.now()));
-                setBattle(null);
-                setInspected(null);
-                setShowMap(false);
-                setShowDeck(false);
-                setShowMenu(false);
-                setReset(false);
-                setSettling(false);
-                window.scrollTo({ top: 0 });
+                sceneTransition.start(() => {
+                  setRun(newAdventure(Date.now()));
+                  setBattle(null);
+                  setInspected(null);
+                  setShowMap(false);
+                  setShowDeck(false);
+                  setShowMenu(false);
+                  setReset(false);
+                  setSettling(false);
+                  window.scrollTo({ top: 0 });
+                });
               }}
             >
               重新开始
@@ -400,12 +420,14 @@ export default function App() {
           <button
             className="primary"
             onClick={() => {
-              let next = recordBattle(run, battle.status as "won" | "lost");
-              if (battle.status === "won" && currentNode(next)?.kind === "boss")
-                next = finishNode(next);
-              setRun(next);
-              setBattle(null);
-              window.scrollTo({ top: 0 });
+              sceneTransition.start(() => {
+                let next = recordBattle(run, battle.status as "won" | "lost");
+                if (battle.status === "won" && currentNode(next)?.kind === "boss")
+                  next = finishNode(next);
+                setRun(next);
+                setBattle(null);
+                window.scrollTo({ top: 0 });
+              });
             }}
           >
             {battle.status === "won"
