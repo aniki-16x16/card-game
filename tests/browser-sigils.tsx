@@ -3,6 +3,8 @@ import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { BattleView } from "../src/features/battle/BattleView";
 import { DeckSearch } from "../src/features/battle/DeckSearch";
+import { ENEMIES, planEnemyTurn } from "../src/domain/enemyAI";
+import type { EnemyProfile } from "../src/domain/enemyAI";
 import { animateBattleAction } from "../src/features/battle/battleAnimation";
 import {
   creature,
@@ -34,6 +36,7 @@ const scenes = [
   "移动接力",
   "群势接力",
   "归巢",
+  ...Object.values(ENEMIES).map((enemy) => enemy.name),
 ] as const;
 type Scene = (typeof scenes)[number];
 function unit(species: Species, id: string, patch: Partial<Unit> = {}): Unit {
@@ -41,9 +44,22 @@ function unit(species: Species, id: string, patch: Partial<Unit> = {}): Unit {
   return { ...card, hp: card.health, age: 0, used: [], base: structuredClone(card), ...patch };
 }
 function sample(scene: Scene): Battle {
+  const profile = (Object.keys(ENEMIES) as EnemyProfile[]).find(
+    (profile) => ENEMIES[profile].name === scene,
+  );
+  if (profile) {
+    const s = startBattle(initialDeck(), 1, 123, "normal", profile);
+    s.canDraw = false;
+    s.player[0][2] = unit("wolf", "threat");
+    s.enemyAI!.plannedRound = 0;
+    // Re-plan only while authoring this fixed scenario, before the player can act.
+    planEnemyTurn(s);
+    return s;
+  }
   const s = startBattle(initialDeck(), 1, 123);
   s.canDraw = false;
   s.intents = [];
+  s.enemyAI = undefined;
   s.hand = [];
   if (scene === "挖洞") {
     s.player[0][2] = unit("mouse", "attacker");
@@ -161,7 +177,15 @@ export function SigilCheck() {
           onDeploy={(row, col) => void play(planDeploy(battle, battle.summon!.cardId, row, col))}
           onSacrifice={(id) => void play(markSacrifice(battle, id))}
           onDraw={(pile) => setBattle(drawCard(battle, pile))}
-          onEnd={() => void play(planRound({ ...battle, canDraw: false, intents: [] }))}
+          onEnd={() =>
+            void play(
+              planRound({
+                ...battle,
+                canDraw: false,
+                intents: battle.enemyAI ? battle.intents : [],
+              }),
+            )
+          }
           onInspect={() => {}}
           onForge={() => {}}
           onReset={() => reset(scene)}

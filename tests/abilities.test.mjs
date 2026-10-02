@@ -18,6 +18,7 @@ import {
 const setup = () => {
   const s = startBattle(initialDeck(), 1, 123);
   s.intents = [];
+  s.enemyAI = undefined;
   s.hand = [];
   s.canDraw = false;
   const frames = [];

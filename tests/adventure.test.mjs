@@ -250,11 +250,12 @@ test("scale starts neutral, cancels damage and ends immediately at positive or n
   assert.equal(loss.status, "lost");
   assert.equal(startBattle(rulesDeck(), 18, 1, "boss").balance, 0);
 });
-test("boss and elite use one arrival and distinct configurations; fatigue moves scale", () => {
+test("boss and elite share normal cards and one arrival; fatigue moves scale", () => {
   for (const kind of ["normal", "elite", "boss"])
     for (let round = 1; round < 12; round++) assert.equal(getIntents(round, 6, 1, kind).length, 1);
-  assert.ok(getIntents(1, 18, 1, "boss")[0].card.native.includes("armor"));
-  assert.ok(getIntents(2, 18, 1, "boss")[0].card.native.includes("flying"));
+  for (const round of [1, 2, 4, 8])
+    for (const kind of ["elite", "boss"])
+      assert.deepEqual(getIntents(round, 18, 1, kind), getIntents(round, 18, 1, "normal"));
   const s = startBattle(rulesDeck(), 1, 1);
   s.intents = [];
   s.deck = [];

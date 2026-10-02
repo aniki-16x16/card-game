@@ -29,6 +29,46 @@
 .right-rail {
   grid-column: 3;
 }
+.enemy-profile {
+  color: #d7a18c;
+  font-size: 15px;
+}
+.enemy-profile strong {
+  font-weight: 500;
+}
+.enemy-preview {
+  display: grid;
+  gap: 8px;
+  color: #cba28b;
+  font-size: 12px;
+}
+.enemy-preview > button {
+  height: 140px;
+  width: 110px;
+  padding: 0;
+  background: #543a3026;
+  border: 1px solid #c79f7250;
+  border-radius: 6px;
+}
+.enemy-preview > button:hover {
+  border-color: #d5ba91;
+}
+@media (max-width: 760px) {
+  .enemy-profile {
+    font-size: 12px;
+  }
+  .enemy-preview {
+    gap: 4px;
+  }
+  .enemy-preview > button {
+    height: 106px;
+    width: 90px;
+  }
+  .enemy-preview .creature {
+    height: 40px;
+    width: 48px;
+  }
+}
 .combat-identity {
   display: grid;
   grid-template-columns: 28px 1fr;

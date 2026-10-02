@@ -3,6 +3,9 @@ import { templates, makeCard, creature, makeSquirrel, sigils, load } from "./car
 import type { Card, Sigil } from "./cards.ts";
 import { STARTER_DECK } from "../data/starterDeck.ts";
 import { BattleEngine, SearchPause } from "./battleEngine.ts";
+import { createEnemy, planEnemyTurn, enemyCostCeiling } from "./enemyAI.ts";
+import type { EnemyAI, EnemyProfile } from "./enemyAI.ts";
+export { enemyCostCeiling } from "./enemyAI.ts";
 export * from "./cards.ts";
 export { attackPower, intrinsicAttack } from "./combatStats.ts";
 export type Unit = Card & {
@@ -36,6 +39,7 @@ export type Battle = {
   hand: Card[];
   deck: Card[];
   enemyDeck: Card[];
+  enemyAI?: EnemyAI;
   searches: { sourceId: string; name: string }[];
   searchAnswers?: string[];
   continuation?: { initial: Battle; operation: BattleOperation; answers: string[]; frames: number };
@@ -76,41 +80,16 @@ export function getIntents(
   mapSeed = MAP_SEED,
   difficulty: Battle["difficulty"] = "normal",
 ): Intent[] {
-  if (round > 12) return [];
-  const rng = createRandom(deriveSeed(mapSeed, `enemy:${encounter}:${round}`));
-  const ceiling = enemyCostCeiling(round, difficulty);
-  const pool = templates
-    .map((card, index) => ({ card, index }))
-    .filter(
-      ({ card }) =>
-        (card.attack > 0 || card.native.includes("colony")) &&
-        card.cost <= ceiling &&
-        card.species !== "squirrel",
-    );
-  const card = makeCard(pool[rng.int(pool.length)].index, `enemy-${round}-a`),
-    col = rng.int(5);
-  if (difficulty === "elite") card.health += 1;
-  if (difficulty === "boss") {
-    card.health += 1;
-    card.native = [
-      ...new Set([...card.native, round % 2 ? ("armor" as const) : ("flying" as const)]),
-    ];
+  if (!Number.isSafeInteger(round) || round < 1) return [];
+  // Standalone empty-board preview; live combat plans against its actual board.
+  const state = startBattle([], encounter, mapSeed, difficulty);
+  for (let r = 2; r <= round; r++) {
+    state.intents = [];
+    if (!state.enemyAI!.hand.length && !state.enemyDeck.length) return [];
+    state.round = r;
+    planEnemyTurn(state);
   }
-  const intents: Intent[] = [
-    { card, col, row: sigils(card).includes("ranged") || sigils(card).includes("support") ? 1 : 0 },
-  ];
-  return intents;
-}
-export function enemyCostCeiling(round: number, difficulty: Battle["difficulty"]): number {
-  return difficulty === "boss"
-    ? 3
-    : difficulty === "elite"
-      ? 2
-      : round <= 3
-        ? 1
-        : round < 8
-          ? 2
-          : 3;
+  return state.intents;
 }
 export const awaitingSearch = (state: Battle) =>
   state.status === "playing" && !!state.searches?.length && !!state.deck.length;
@@ -202,10 +181,12 @@ export function startBattle(
   encounter = 1,
   mapSeed = MAP_SEED,
   difficulty: Battle["difficulty"] = "normal",
+  profile?: EnemyProfile,
 ): Battle {
   const shuffled = createRandom(deriveSeed(mapSeed, `deck:${encounter}`)).shuffle(cards);
   const squirrels = Array.from({ length: 10 }, (_, i) => makeSquirrel(`squirrel-${i}`));
-  return {
+  const enemy = createEnemy(mapSeed, encounter, profile);
+  const state: Battle = {
     mapSeed,
     nextId: 1,
     round: 1,
@@ -215,22 +196,20 @@ export function startBattle(
     enemy: emptyBoard(),
     hand: [...structuredClone(shuffled.slice(0, 5)), squirrels[0]],
     deck: structuredClone(shuffled.slice(5)),
-    enemyDeck: createRandom(deriveSeed(mapSeed, `reserve:${encounter}`))
-      .shuffle(
-        templates.map((card, i) => ({ card, i })).filter(({ card }) => card.species !== "squirrel"),
-      )
-      .slice(0, 16)
-      .map(({ i }, index) => makeCard(i, `reserve-${encounter}-${index}`)),
+    enemyDeck: enemy.deck,
+    enemyAI: enemy.ai,
     searches: [],
     squirrelDeck: squirrels.slice(1),
     canDraw: true,
     summon: null,
-    intents: getIntents(1, encounter, mapSeed, difficulty),
+    intents: [],
     log: ["选择牌堆抽牌。0 费生物可直接部署；其他生物需要献祭己方单位。"],
     status: "playing",
     fatigue: 0,
     encounter,
   };
+  planEnemyTurn(state);
+  return state;
 }
 export function getRewards(mapSeed: number, encounter: number): Card[] {
   return createRandom(deriveSeed(mapSeed, `rewards:${encounter}`))
@@ -426,9 +405,7 @@ function resolveRoundCore(state: Battle, record?: Recorder): Battle {
   s.summon = null;
   const engine = new BattleEngine(s, record, true);
   const arriving = [...s.intents]
-    .filter(
-      (intent) => !intent.costGated || intent.card.cost <= enemyCostCeiling(s.round, s.difficulty),
-    )
+    .filter((intent) => !intent.costGated || intent.card.cost <= enemyCostCeiling(s.round))
     .sort((a, b) => a.col - b.col || b.row - a.row)
     .slice(0, 1);
   engine.cleanup();
@@ -436,11 +413,11 @@ function resolveRoundCore(state: Battle, record?: Recorder): Battle {
   if (engine.checkEnd()) return s;
   engine.beginTurn("enemy");
   for (const intent of arriving.filter((intent) => s.intents.includes(intent))) {
-    s.intents = s.intents.filter((ready) => ready !== intent);
     const row = !s.enemy[intent.row][intent.col] ? intent.row : 1 - intent.row;
-    if (!s.enemy[row][intent.col])
+    if (!s.enemy[row][intent.col]) {
+      s.intents = s.intents.filter((ready) => ready !== intent);
       engine.place(intent.card, "enemy", row, intent.col, "intent-" + intent.card.id);
-    else s.log.unshift(`第 ${intent.col + 1} 列已满，敌方 ${intent.card.name} 未能进场。`);
+    } else s.log.unshift(`第 ${intent.col + 1} 列已满，敌方 ${intent.card.name} 等待落点。`);
   }
   if (engine.checkEnd()) return s;
   engine.turn("enemy");
@@ -462,8 +439,7 @@ function resolveRoundCore(state: Battle, record?: Recorder): Battle {
   }
   if (!engine.checkEnd()) {
     engine.startRound();
-    if (!s.intents.length)
-      s.intents.push(...getIntents(s.round, s.encounter, s.mapSeed, s.difficulty));
+    planEnemyTurn(s);
   }
   s.log = s.log.slice(0, 60);
   return s;

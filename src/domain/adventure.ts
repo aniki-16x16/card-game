@@ -3,6 +3,7 @@ import { templates, makeCard, TRIBES } from "./cards.ts";
 import type { Card, Sigil, Tribe } from "./cards.ts";
 import { createRandom, deriveSeed, MAP_SEED } from "./random.ts";
 import { generateMap } from "./mapGenerator.ts";
+import { enemyProfile } from "./enemyAI.ts";
 export { generateMap } from "./mapGenerator.ts";
 
 export type NodeKind =
@@ -55,6 +56,13 @@ export type Adventure = {
 };
 const combat = (kind: NodeKind) => ["battle", "elite", "boss"].includes(kind);
 export { combat as isCombat };
+
+export function battleProfile(run: Adventure) {
+  const completed = run.path.filter((id) =>
+    combat(run.nodes.find((node) => node.id === id)!.kind),
+  ).length;
+  return enemyProfile(run.seed, completed + 1);
+}
 
 export function newAdventure(seed = MAP_SEED): Adventure {
   return {

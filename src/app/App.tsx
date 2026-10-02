@@ -16,6 +16,7 @@ import {
   isCombat,
   recordBattle,
   finishNode,
+  battleProfile,
 } from "../domain/adventure";
 import type { Adventure } from "../domain/adventure";
 import {
@@ -127,6 +128,7 @@ export default function App() {
           node.floor,
           next.seed,
           node.kind === "boss" ? "boss" : node.kind === "elite" ? "elite" : "normal",
+          battleProfile(next),
         ),
       );
     window.scrollTo({ top: 0 });

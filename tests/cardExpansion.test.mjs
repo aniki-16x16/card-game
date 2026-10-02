@@ -9,7 +9,6 @@ import {
   initialDeck,
   startBattle,
   planRound,
-  getIntents,
   sigilDescription,
 } from "../src/domain/game.ts";
 import {
@@ -26,6 +25,7 @@ const unit = (species, id, patch = {}) => {
 const setup = () => {
   const state = startBattle(initialDeck(), 1, 123);
   state.intents = [];
+  state.enemyAI = undefined;
   state.hand = [];
   state.canDraw = false;
   return { state, engine: new BattleEngine(state) };
@@ -129,12 +129,15 @@ test("every tribe remains discoverable at tribe nodes with three matching reward
   assert.deepEqual([...seen].sort(), Object.keys(TRIBES).sort());
 });
 
-test("expanded cards participate in early enemy arrivals within their cost limit", () => {
+test("expanded cards participate in the first three enemy turns within their cost limit", () => {
   const seen = new Set();
   for (let seed = 0; seed < 400; seed++) {
-    const arrivals = getIntents(1, 1, seed);
-    assert.ok(arrivals.every(({ card }) => card.cost <= 1));
-    for (const { card } of arrivals) seen.add(card.species);
+    let battle = startBattle(initialDeck(), 1, seed);
+    for (let round = 1; round <= 3; round++) {
+      assert.ok(battle.intents.every(({ card }) => card.cost <= 1));
+      for (const { card } of battle.intents) seen.add(card.species);
+      battle = planRound({ ...battle, canDraw: false }).state;
+    }
   }
   for (const species of ["wolfpup", "hound", "fawn", "carp", "honeybee", "soldierant"])
     assert.ok(seen.has(species), species);

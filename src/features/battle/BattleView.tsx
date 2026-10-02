@@ -5,6 +5,7 @@ import type { Battle, Card, DrawPile, Unit } from "../../domain/game";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { CardFace } from "../../components/cards/Cards";
+import { ENEMIES } from "../../domain/enemyAI";
 import { animate } from "animejs";
 import { TABLE, boardWidth, tableWidth, tableHeight, tableBounds, tableScale } from "./tableLayout";
 
@@ -95,6 +96,11 @@ export function BattleView(props: Props) {
   return (
     <div className="combat-screen" ref={screen}>
       <aside className="combat-rail left-rail" aria-label="战斗状态">
+        {battle.enemyAI && (
+          <div className="enemy-profile" aria-label="敌人倾向">
+            <strong>{ENEMIES[battle.enemyAI.profile].name}</strong>
+          </div>
+        )}
         <div className="combat-scale" aria-label="战斗天平">
           <BalanceScale balance={battle.balance} />
         </div>
@@ -233,6 +239,21 @@ export function BattleView(props: Props) {
       </section>
 
       <aside className="combat-rail right-rail" aria-label="战斗操作">
+        {battle.intents.slice(0, 1).map((intent) => (
+          <div className="enemy-preview" key={intent.card.id} aria-label="敌方来袭">
+            <span>
+              来袭 · {intent.row === 0 ? "前排" : "后排"} 第 {intent.col + 1} 列
+            </span>
+            <button
+              data-motion={`intent-${intent.card.id}`}
+              aria-label={`查看来袭 ${intent.card.name}`}
+              disabled={props.settling}
+              onClick={() => onInspect(intent.card)}
+            >
+              <CardFace card={intent.card} compact onInspect={onInspect} />
+            </button>
+          </div>
+        ))}
         <button className="rail-forge" disabled={settling} onClick={props.onForge}>
           查看地图与牌组
         </button>

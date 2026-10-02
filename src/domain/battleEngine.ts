@@ -2,6 +2,7 @@ import { creature, grownForm, makeToken, sigils, originalForm, normalCost } from
 import type { Card, Sigil, TokenKind } from "./cards.ts";
 import type { Battle, BattleAction, DeathCause, Recorder, Unit } from "./game.ts";
 import { attackPower } from "./combatStats.ts";
+import { chooseEnemySearch } from "./enemyAI.ts";
 
 type Side = "player" | "enemy";
 const other = (side: Side): Side => (side === "player" ? "enemy" : "player");
@@ -55,6 +56,7 @@ export class BattleEngine {
   }
   give(side: Side, card: Card, col: number) {
     if (side === "player") this.s.hand.push(card);
+    else if (this.s.enemyAI) this.s.enemyAI.hand.push(card);
     else this.s.intents.push({ card, row: 0, col, costGated: true });
     this.s.log.unshift(`${side === "player" ? "我方获得" : "敌方预备"} ${card.name}。`);
   }
@@ -70,16 +72,15 @@ export class BattleEngine {
     const unit = this.s[side][row][col];
     if (!unit) return;
     const waiting =
-      side === "player" ? [...this.s.hand] : this.s.intents.map((intent) => intent.card);
+      side === "player"
+        ? [...this.s.hand]
+        : [...(this.s.enemyAI?.hand ?? []), ...this.s.intents.map((intent) => intent.card)];
     const ready = (card: Card) =>
       card.id !== unit.id &&
       card.health > 0 &&
       has(card, "reinforce") &&
       !this.reinforcementChain.has(card.id);
-    const reinforcement =
-      side === "player"
-        ? this.s.hand.find(ready)
-        : this.s.intents.find((intent) => ready(intent.card))?.card;
+    const reinforcement = side === "player" ? this.s.hand.find(ready) : waiting.find(ready);
     this.s[side][row][col] = null;
     const {
       hp: _hp,
@@ -142,8 +143,11 @@ export class BattleEngine {
       if (side === "player") {
         this.s.hand = this.s.hand.filter((card) => card.id !== reinforcement.id);
         if (this.s.summon?.cardId === reinforcement.id) this.s.summon = null;
-      } else
+      } else {
+        if (this.s.enemyAI)
+          this.s.enemyAI.hand = this.s.enemyAI.hand.filter((card) => card.id !== reinforcement.id);
         this.s.intents = this.s.intents.filter((intent) => intent.card.id !== reinforcement.id);
+      }
       this.place(
         reinforcement,
         side,
@@ -314,20 +318,7 @@ export class BattleEngine {
             this.effect(side, row, col, `${unit.name} 检索，获得 ${card.name}。`);
           }
         } else {
-          const ceiling =
-            this.s.difficulty === "boss"
-              ? 3
-              : this.s.difficulty === "elite"
-                ? 2
-                : this.s.round <= 3
-                  ? 1
-                  : this.s.round < 8
-                    ? 2
-                    : 3;
-          const candidates = deck.filter((card) => card.cost <= ceiling);
-          const choice = [...(candidates.length ? candidates : deck)].sort(
-            (a, b) => b.attack + b.health - a.attack - a.health || a.cost - b.cost,
-          )[0];
+          const choice = chooseEnemySearch(this.s)!;
           deck.splice(deck.indexOf(choice), 1);
           this.give(side, choice, col);
           this.effect(side, row, col, `${unit.name} 检索，预备 ${choice.name}。`);
@@ -360,8 +351,9 @@ export class BattleEngine {
         });
       } else {
         // Enemy tokens share the one-entry-per-round quota instead of bypassing it.
-        this.s.intents.push({ card: this.token("egg"), row: 1, col });
-        this.effect(side, row, col, `${unit.name} 筑巢，蛋进入下一回合预告。`);
+        if (this.s.enemyAI) this.give(side, this.token("egg"), col);
+        else this.s.intents.push({ card: this.token("egg"), row: 1, col });
+        this.effect(side, row, col, `${unit.name} 筑巢，蛋加入敌方手牌。`);
       }
     }
     if (unit.hp <= 0) {

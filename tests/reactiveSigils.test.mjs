@@ -22,6 +22,7 @@ const setup = () => {
   const s = startBattle(initialDeck(), 1, 123);
   s.hand = [];
   s.intents = [];
+  s.enemyAI = undefined;
   s.canDraw = false;
   const frames = [],
     e = new BattleEngine(s, (action, state) => frames.push({ action, state }));

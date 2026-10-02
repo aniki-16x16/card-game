@@ -26,6 +26,7 @@ const setup = () => {
   const s = startBattle(initialDeck(), 1, 123);
   s.hand = [];
   s.intents = [];
+  s.enemyAI = undefined;
   s.deck = [];
   s.enemyDeck = [];
   s.canDraw = false;

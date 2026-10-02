@@ -30,6 +30,7 @@ const quietBattle = () => ({
   hand: [...rulesDeck().slice(0, 5), makeSquirrel("squirrel-0")],
   deck: rulesDeck().slice(5),
   intents: [],
+  enemyAI: undefined,
   canDraw: false,
 });
 
