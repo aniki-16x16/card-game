@@ -38,6 +38,8 @@ export function SceneTransitionProvider({ children }: { children: ReactNode }) {
     const overlay = dialog.current!;
     // The top layer also covers battle-result dialogs and traps keyboard input.
     overlay.showModal();
+    // Establish SVG geometry on its first display before starting transform-box animations.
+    overlay.getBoundingClientRect();
     const circles = Array.from(overlay.querySelectorAll("circle"));
 
     async function wave(cover: boolean) {

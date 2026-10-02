@@ -15,12 +15,13 @@ export async function animateBattleAction(
   signal: AbortSignal,
   state: Battle,
   retained?: (() => void)[],
+  resolve = find,
 ) {
   // 天平受击只由 BalanceScale 的游标移动反馈，不生成数字，也不抖动刻度。
   if (action.kind === "hit" && (action.target === "life-player" || action.target === "life-enemy"))
     return;
-  const source = find(action.source),
-    target = find(action.target);
+  const source = resolve(action.source),
+    target = resolve(action.target);
   if (!target || signal.aborted) return;
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const floating: HTMLElement[] = [];
@@ -58,6 +59,7 @@ export async function animateBattleAction(
           ),
           action.kind === "advance",
           signal,
+          retained,
         );
     } else if (action.kind === "attack" && source) {
       // 普通模式的攻击节奏与姿态在 attackFlight.ts 顶部 ATTACK 中调整。
@@ -176,13 +178,17 @@ export async function animateBattleAction(
 }
 
 /** All marks are already rendered. Deaths overlap, starting 100ms apart. */
-export async function animateSacrificeBatch(frames: BattleFrame[], signal: AbortSignal) {
+export async function animateSacrificeBatch(
+  frames: BattleFrame[],
+  signal: AbortSignal,
+  retained: (() => void)[],
+  resolve = find,
+) {
   const motion = motionScope(signal);
-  const retained: (() => void)[] = [];
   try {
     await Promise.all(
       frames.map(({ action }) => {
-        const badge = find(action.target)?.querySelector<HTMLElement>(".sacrifice-badge");
+        const badge = resolve(action.target)?.querySelector<HTMLElement>(".sacrifice-badge");
         return badge
           ? motion.tween(badge, {
               opacity: [0.35, 1],
@@ -198,11 +204,11 @@ export async function animateSacrificeBatch(frames: BattleFrame[], signal: Abort
       sacrificeSchedule(frames).map(async ({ frame, delay }) => {
         if (delay)
           await motion.tween({ progress: 0 }, { progress: 1, duration: delay, ease: "linear" });
-        if (!signal.aborted) await animateBattleAction(frame.action, signal, frame.state, retained);
+        if (!signal.aborted)
+          await animateBattleAction(frame.action, signal, frame.state, retained, resolve);
       }),
     );
   } finally {
-    retained.forEach((cleanup) => cleanup());
     motion.dispose();
   }
 }

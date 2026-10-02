@@ -1,8 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { flushSync } from "react-dom";
 import { X } from "lucide-react";
-import { animateBattleAction, animateSacrificeBatch } from "../features/battle/battleAnimation";
+import { useBattleController } from "../features/battle/useBattleController";
 import { Creature } from "../components/creatures/Creature";
 import { CardFace } from "../components/cards/Cards";
 import { SigilIcon } from "../components/cards/SigilIcon";
@@ -25,18 +24,12 @@ import {
   SIGILS,
   attackPower,
   intrinsicAttack,
-  planDeploy,
-  drawCard,
-  markSacrifice,
-  selectSummon,
   load,
-  planRound,
-  planSearch,
   sigils,
   sigilDescription,
   startBattle,
 } from "../domain/game";
-import type { Battle, BattleFrame, Card, Unit } from "../domain/game";
+import type { Card, Unit } from "../domain/game";
 import "./App.css";
 import "./GameMenu.css";
 import "../features/battle/BattleView.css";
@@ -92,18 +85,14 @@ export default function App() {
 function Game() {
   const sceneTransition = useSceneTransition();
   const [run, setRun] = useState<Adventure>(() => newAdventure());
-  const [battle, setBattle] = useState<Battle | null>(null);
+  const controller = useBattleController();
+  const { battle, setBattle, settling, actionLabel } = controller;
   const [inspected, setInspected] = useState<Card | Unit | null>(null);
   const [reset, setReset] = useState(false),
     [showLog, setShowLog] = useState(false),
     [showMap, setShowMap] = useState(false);
   const [showMenu, setShowMenu] = useState(false),
     [showDeck, setShowDeck] = useState(false);
-  const [settling, setSettling] = useState(false),
-    [actionLabel, setActionLabel] = useState("");
-  const playing = useRef(false),
-    animationAbort = useRef<AbortController | null>(null);
-  useEffect(() => () => animationAbort.current?.abort(), []);
   useLayoutEffect(() => {
     const previous = window.history.scrollRestoration;
     window.history.scrollRestoration = "manual";
@@ -155,49 +144,6 @@ function Game() {
       sceneTransition.start(apply);
     else apply();
   }
-  async function play(frames: BattleFrame[], finalState: Battle, markedState?: Battle) {
-    if (playing.current) return;
-    playing.current = true;
-    const controller = new AbortController();
-    animationAbort.current = controller;
-    flushSync(() => {
-      setSettling(true);
-      setInspected(null);
-      if (markedState) {
-        setBattle(markedState);
-        setActionLabel("献祭");
-      }
-    });
-    try {
-      let batchEnd = 0;
-      if (markedState) {
-        while (
-          batchEnd < frames.length &&
-          ["death", "sacrifice"].includes(frames[batchEnd].action.kind)
-        )
-          batchEnd++;
-        if (batchEnd) {
-          await animateSacrificeBatch(frames.slice(0, batchEnd), controller.signal);
-          if (!controller.signal.aborted) flushSync(() => setBattle(frames[batchEnd - 1].state));
-        }
-      }
-      if (controller.signal.aborted) return;
-      for (const frame of frames.slice(batchEnd)) {
-        if (controller.signal.aborted) return;
-        flushSync(() => setActionLabel(frame.action.label));
-        await animateBattleAction(frame.action, controller.signal, frame.state);
-        if (controller.signal.aborted) return;
-        flushSync(() => setBattle(frame.state));
-      }
-      setBattle(finalState);
-    } finally {
-      playing.current = false;
-      if (!controller.signal.aborted) {
-        setSettling(false);
-        setActionLabel("");
-      }
-    }
-  }
   const detailHp =
     inspected && "hp" in inspected
       ? inspected.hp
@@ -219,39 +165,15 @@ function Game() {
             selected={selected}
             settling={settling}
             canForge={false}
-            onSelect={(id) => {
-              if (!playing.current) setBattle(selectSummon(battle, id));
-            }}
-            onSacrifice={(id) => {
-              if (playing.current) return;
-              const p = markSacrifice(battle, id);
-              if (p.frames.length && battle.summon)
-                void play(p.frames, p.state, {
-                  ...battle,
-                  summon: {
-                    ...battle.summon,
-                    sacrifices: [...new Set([...battle.summon.sacrifices, id])],
-                  },
-                });
-              else setBattle(p.state);
-            }}
-            onDraw={(pile) => {
-              if (!playing.current) setBattle(drawCard(battle, pile));
-            }}
+            onSelect={controller.select}
+            onSacrifice={controller.sacrifice}
+            onDraw={controller.draw}
             onInspect={setInspected}
-            onEnd={() => {
-              if (playing.current) return;
-              const p = planRound(battle);
-              void play(p.frames, p.state);
-            }}
+            onEnd={controller.end}
             onForge={() => setShowMap(true)}
             onReset={() => setReset(true)}
             onLog={() => setShowLog(true)}
-            onDeploy={(row, col) => {
-              if (playing.current || !selected) return;
-              const p = planDeploy(battle, selected, row, col);
-              if (p.state !== battle) void play(p.frames, p.state);
-            }}
+            onDeploy={controller.deploy}
           />
         </main>
       ) : (
@@ -294,15 +216,8 @@ function Game() {
           </nav>
         </Modal>
       )}
-      {battle && !settling && (
-        <DeckSearch
-          battle={battle}
-          onChoose={(id) => {
-            if (playing.current) return;
-            const plan = planSearch(battle, id);
-            if (plan.state !== battle) void play(plan.frames, plan.state);
-          }}
-        />
+      {battle && !settling && !controller.pending && (
+        <DeckSearch battle={battle} onChoose={controller.search} />
       )}
       {showDeck && (
         <Modal label="当前牌组" onClose={() => setShowDeck(false)}>
@@ -386,7 +301,7 @@ function Game() {
             <button
               className="primary"
               onClick={() => {
-                animationAbort.current?.abort();
+                controller.abort();
                 sceneTransition.start(() => {
                   setRun(newAdventure(Date.now()));
                   setBattle(null);
@@ -395,7 +310,7 @@ function Game() {
                   setShowDeck(false);
                   setShowMenu(false);
                   setReset(false);
-                  setSettling(false);
+
                   window.scrollTo({ top: 0 });
                 });
               }}
@@ -405,7 +320,7 @@ function Game() {
           </div>
         </Modal>
       )}
-      {battle && !settling && battle.status !== "playing" && (
+      {battle && !settling && !controller.pending && battle.status !== "playing" && (
         <Modal
           dismissible={false}
           label={battle.status === "won" ? "遭遇胜利" : "遭遇失败"}

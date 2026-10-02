@@ -145,3 +145,12 @@
   text-align: center;
   padding-top: 70px;
 }
+.presentation-stage {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transform-style: preserve-3d;
+}
+.presentation-actor:empty {
+  visibility: hidden;
+}

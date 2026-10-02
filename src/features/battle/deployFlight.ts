@@ -8,6 +8,7 @@ export async function deployFlight(
   markup: string,
   advance: boolean,
   signal: AbortSignal,
+  retained?: (() => void)[],
 ) {
   if (signal.aborted) return;
   const table = flightTable(target);
@@ -100,8 +101,12 @@ export async function deployFlight(
       motion.tween(card, { filter: ["brightness(1.3)", "brightness(1)"], duration: 140 }),
     ]);
   } finally {
-    motion.dispose();
-    flight.dispose();
-    if (hidden) hidden.style.visibility = visibility;
+    const cleanup = () => {
+      motion.dispose();
+      flight.dispose();
+      if (hidden) hidden.style.visibility = visibility;
+    };
+    if (retained && !signal.aborted) retained.push(cleanup);
+    else cleanup();
   }
 }
