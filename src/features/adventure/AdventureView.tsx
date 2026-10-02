@@ -14,17 +14,13 @@ import {
 } from "lucide-react";
 import { CardFace } from "../../components/cards/Cards";
 import { SigilIcon } from "../../components/cards/SigilIcon";
-import { SIGILS, TRIBES, sigils, transfer } from "../../domain/game";
+import { SIGILS, sigils, transfer } from "../../domain/game";
 import type { Card, Sigil } from "../../domain/game";
 import {
   availableNodes,
   getMapReachability,
   currentNode,
   NODE_NAMES,
-  categoryOptions,
-  chooseCategory,
-  visitRewards,
-  takeReward,
   removeCard,
   upgradeCard,
   upgradeRisk,
@@ -35,6 +31,7 @@ import {
 import type { Adventure } from "../../domain/adventure";
 import { mapCurvePath } from "../../domain/mapGeometry";
 import "./Adventure.css";
+import { RewardChoice } from "./RewardChoice";
 
 const icons = {
   cost: Dices,
@@ -266,44 +263,7 @@ export function NodeEvent({
         </p>
       )}
       {reward ? (
-        <>
-          {visit.category === undefined && !isCombat(node.kind) ? (
-            <>
-              <div className="category-options">
-                {categoryOptions(run).map((category) => (
-                  <button key={category} onClick={() => onChange(chooseCategory(run, category))}>
-                    {typeof category === "number" ? `${category} 费` : TRIBES[category]}
-                  </button>
-                ))}
-              </div>
-            </>
-          ) : (
-            <>
-              {visit.category !== undefined && (
-                <p>
-                  {typeof visit.category === "number"
-                    ? `${visit.category} 费`
-                    : TRIBES[visit.category]}
-                </p>
-              )}
-              <div className="event-cards">
-                {visitRewards(run).map((card) => (
-                  <button
-                    key={card.id}
-                    onClick={() => onChange(takeReward(run, card.id))}
-                    aria-label={`拿取 ${card.name}`}
-                  >
-                    <CardFace card={card} onInspect={onInspect} />
-                    <span>加入牌组</span>
-                  </button>
-                ))}
-              </div>
-              <button className="secondary" onClick={() => onChange(takeReward(run, null))}>
-                跳过拿牌
-              </button>
-            </>
-          )}
-        </>
+        <RewardChoice run={run} onChange={onChange} onInspect={onInspect} />
       ) : (
         <>
           {!visit.done && node.kind === "transfer" && (
