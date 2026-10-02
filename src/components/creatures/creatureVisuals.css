@@ -76,3 +76,12 @@
   width: 11cqw;
   height: 11cqw;
 }
+
+.card-tribe {
+  position: absolute;
+  top: 13%;
+  left: 8%;
+  font-size: 10px;
+  color: #9db48a;
+  letter-spacing: 1px;
+}

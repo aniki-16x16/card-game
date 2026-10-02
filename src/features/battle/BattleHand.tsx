@@ -12,6 +12,7 @@ type Props = {
   settling: boolean;
   onSelect: (id: string | null) => void;
   onInspect: (card: Card | Unit) => void;
+  emptyText?: string;
 };
 
 export function BattleHand({
@@ -22,6 +23,7 @@ export function BattleHand({
   settling,
   onSelect,
   onInspect,
+  emptyText = "手牌已空 · 从右侧牌堆选择抽牌",
 }: Props) {
   const root = useRef<HTMLElement>(null);
   const [width, setWidth] = useState(600);
@@ -88,7 +90,7 @@ export function BattleHand({
             <CardFace card={card} onInspect={onInspect} />
           </button>
         ))}
-        {!cards.length && <p className="hand-empty">手牌已空 · 从右侧牌堆选择抽牌</p>}
+        {!cards.length && <p className="hand-empty">{emptyText}</p>}
       </div>
     </section>
   );

@@ -10,10 +10,13 @@ import {
   currentNode,
   takeReward,
   visitRewards,
+  finishNode,
+  NODE_NAMES,
 } from "../../domain/adventure";
 import type { Adventure } from "../../domain/adventure";
 import "./RewardChoice.css";
 import { useSceneTransition } from "../../components/transitions/SceneTransitionContext";
+import { EventTable } from "./EventTable";
 
 export function RewardChoice(props: {
   run: Adventure;
@@ -45,6 +48,7 @@ function ChoiceDeal({
   const [busy, setBusy] = useState(true);
   const { active: sceneTransitionActive } = useSceneTransition();
   const [dealt, setDealt] = useState(false);
+  const [selected, setSelected] = useState<string | null>(null);
   const category = run.visit!.category;
   const choosingCategory = category === undefined && !isCombat(currentNode(run)!.kind);
 
@@ -117,7 +121,7 @@ function ChoiceDeal({
           },
           {
             opacity: 0,
-            transform: `translate(${x}px, ${picked ? 180 : -100}px) rotate(${picked ? -6 : 8}deg) scale(.55)`,
+            transform: `translate(${x}px, ${picked ? window.innerHeight - rect.top : -100}px) rotate(${picked ? -6 : 8}deg) scale(.55)`,
           },
         ],
         {
@@ -138,68 +142,80 @@ function ChoiceDeal({
   }
 
   return (
-    <div className="reward-choice" ref={root} aria-busy={busy}>
-      {!choosingCategory && category !== undefined && (
-        <p className="choice-category">
-          {typeof category === "number" ? `${category} 费` : TRIBES[category]}
-        </p>
-      )}
-      <div
-        className="choice-cards"
-        style={sceneTransitionActive && !dealt ? { visibility: "hidden" } : undefined}
-      >
-        {choosingCategory
-          ? categoryOptions(run).map((option) => (
-              <div className="choice-slot" key={option} data-choice={String(option)}>
-                <button
-                  className={`category-card ${typeof option === "number" ? "cost-category-card" : ""}`}
-                  disabled={busy}
-                  aria-label={`选择${typeof option === "number" ? `${option} 费` : TRIBES[option]}`}
-                  onClick={() => void collect(chooseCategory(run, option), String(option))}
-                >
-                  <span className="category-card-corner" aria-hidden="true">
-                    ✦
-                  </span>
-                  {typeof option === "number" ? (
-                    <span className="category-cost">
-                      <strong>{option}</strong>
-                      <span>费</span>
-                    </span>
-                  ) : (
-                    <TribeSilhouette tribe={option} />
-                  )}
-                  {typeof option !== "number" && (
-                    <span className="category-card-name">{TRIBES[option]}</span>
-                  )}
-                  <span className="category-card-corner bottom" aria-hidden="true">
-                    ✦
-                  </span>
-                </button>
-              </div>
-            ))
-          : visitRewards(run).map((card) => (
-              <div className="choice-slot" key={card.id} data-choice={card.id}>
-                <button
-                  className="reward-card"
-                  disabled={busy}
-                  aria-label={`拿取 ${card.name}`}
-                  onClick={() => void collect(takeReward(run, card.id), card.id)}
-                >
-                  <CardFace card={card} onInspect={onInspect} />
-                  <span className="reward-card-action">加入牌组</span>
-                </button>
-              </div>
-            ))}
-      </div>
-      {!choosingCategory && (
-        <button
-          className="secondary"
-          disabled={busy}
-          onClick={() => void collect(takeReward(run, null))}
+    <EventTable
+      title={isCombat(currentNode(run)!.kind) ? "战利品" : NODE_NAMES[currentNode(run)!.kind]}
+      busy={busy}
+      onCancel={() => {
+        if (selected) {
+          setSelected(null);
+          return true;
+        }
+        return false;
+      }}
+      onLeave={() => void collect(choosingCategory ? finishNode(run) : takeReward(run, null))}
+    >
+      <div className="reward-choice" ref={root} aria-busy={busy}>
+        {!choosingCategory && category !== undefined && (
+          <p className="choice-category">
+            {typeof category === "number" ? `${category} 费` : TRIBES[category]}
+          </p>
+        )}
+        <div
+          className={"choice-cards " + (selected ? "has-selection" : "")}
+          style={sceneTransitionActive && !dealt ? { visibility: "hidden" } : undefined}
         >
-          跳过拿牌
-        </button>
-      )}
-    </div>
+          {choosingCategory
+            ? categoryOptions(run).map((option) => (
+                <div className="choice-slot" key={option} data-choice={String(option)}>
+                  <button
+                    className={`category-card ${typeof option === "number" ? "cost-category-card" : ""}`}
+                    disabled={busy}
+                    aria-label={`选择${typeof option === "number" ? `${option} 费` : TRIBES[option]}`}
+                    onClick={() => void collect(chooseCategory(run, option), String(option))}
+                  >
+                    <span className="category-card-corner" aria-hidden="true">
+                      ✦
+                    </span>
+                    {typeof option === "number" ? (
+                      <span className="category-cost">
+                        <strong>{option}</strong>
+                        <span>费</span>
+                      </span>
+                    ) : (
+                      <TribeSilhouette tribe={option} />
+                    )}
+                    {typeof option !== "number" && (
+                      <span className="category-card-name">{TRIBES[option]}</span>
+                    )}
+                    <span className="category-card-corner bottom" aria-hidden="true">
+                      ✦
+                    </span>
+                  </button>
+                </div>
+              ))
+            : visitRewards(run).map((card) => (
+                <div
+                  className={"choice-slot " + (selected === card.id ? "is-selected" : "")}
+                  key={card.id}
+                  data-choice={card.id}
+                >
+                  <button
+                    className="reward-card"
+                    disabled={busy}
+                    aria-label={`拿取 ${card.name}`}
+                    aria-pressed={selected === card.id}
+                    onClick={() => {
+                      if (selected === card.id) void collect(takeReward(run, card.id), card.id);
+                      else setSelected(card.id);
+                    }}
+                  >
+                    <CardFace card={card} onInspect={onInspect} />
+                    <span className="reward-card-action">再次点击 · 收入牌组</span>
+                  </button>
+                </div>
+              ))}
+        </div>
+      </div>
+    </EventTable>
   );
 }

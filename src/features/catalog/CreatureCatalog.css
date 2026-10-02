@@ -150,14 +150,7 @@
   color: #b2c49e;
   padding: 40px 0;
 }
-.card-tribe {
-  position: absolute;
-  top: 13%;
-  left: 8%;
-  font-size: 10px;
-  color: #9db48a;
-  letter-spacing: 1px;
-}
+
 .card-face .card-sigils {
   max-width: 88%;
   flex-wrap: wrap;
