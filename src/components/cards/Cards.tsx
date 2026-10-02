@@ -39,17 +39,29 @@ export function CardFace({
       </div>
       <span className="card-tribe">{TRIBES[card.tribe]}</span>
       <Creature species={card.species} art={card.art} />
-      <div className="card-sigils">
-        {sigils(card).length ? (
-          sigils(card).map((s) => (
+      {!!card.added.length && (
+        <div className="card-added-sigils" aria-label="后天印记">
+          {card.added.map((s) => (
             <span
               key={s}
               aria-label={SIGILS[s].name}
-              className={card.added.includes(s) ? "inherited" : ""}
+              title={SIGILS[s].name + "：" + sigilDescription(card, s)}
+            >
+              <SigilIcon sigil={s} />
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="card-sigils">
+        {card.native.length ? (
+          card.native.map((s) => (
+            <span
+              key={s}
+              aria-label={SIGILS[s].name}
               title={`${SIGILS[s].name}：${sigilDescription(card, s)}`}
             >
               <SigilIcon sigil={s} />
-              {!compact && sigils(card).length <= 2 && <small>{SIGILS[s].name}</small>}
+              {!compact && card.native.length <= 2 && <small>{SIGILS[s].name}</small>}
             </span>
           ))
         ) : (

@@ -191,38 +191,38 @@ test("deck exhaustion causes increasing fatigue and can end the battle", () => {
 });
 test("repeated transfers consume donors and preserve native sigils, stats and capacity", () => {
   let cards = rulesDeck();
-  cards = transfer(cards, "starter-1", "starter-0", "armor").deck;
-  cards = transfer(cards, "starter-2", "starter-0", "ranged").deck;
-  cards = transfer(cards, "starter-3", "starter-0", "support").deck;
+  cards = transfer(cards, "starter-1", "starter-0").deck;
+  cards = transfer(cards, "starter-2", "starter-0").deck;
+  cards = transfer(cards, "starter-3", "starter-0").deck;
   const result = cards.find((c) => c.id === "starter-0");
   assert.deepEqual(result.added, ["armor", "ranged", "support"]);
   assert.equal(load(result), 3);
   assert.equal(result.attack, 3);
-  assert.equal(result.capacity, 3);
+  assert.equal(result.capacity, 6);
   assert.equal(cards.length, 11);
-  assert.ok(transfer(cards, "starter-5", "starter-0", "rebirth").error);
-  const replacement = transfer(cards, "starter-5", "starter-0", "rebirth", [
+  const next = transfer(cards, "starter-5", "starter-0");
+  assert.equal(next.error, undefined);
+  assert.deepEqual(next.deck.find((c) => c.id === "starter-0").added, [
     "armor",
     "ranged",
     "support",
+    "rebirth",
   ]);
-  assert.equal(replacement.error, undefined);
-  assert.deepEqual(replacement.deck.find((c) => c.id === "starter-0").added, ["rebirth"]);
 });
-test("transfer rejects self, duplicate ability, missing ability, and a deck below minimum size", () => {
+test("transfer rejects self, empty donors, and a deck below minimum size", () => {
   const cards = rulesDeck();
-  assert.ok(transfer(cards, "starter-1", "starter-1", "armor").error);
-  assert.ok(transfer(cards, "starter-1", "starter-9", "armor").error);
-  assert.ok(transfer(cards, "starter-0", "starter-1", "rebirth").error);
-  assert.ok(transfer(cards.slice(0, 6), "starter-1", "starter-0", "armor").error);
+  assert.ok(transfer(cards, "starter-1", "starter-1").error);
+  assert.equal(transfer(cards, "starter-1", "starter-9").error, undefined);
+  assert.ok(transfer(cards, "starter-0", "starter-1").error);
+  assert.ok(transfer(cards.slice(0, 6), "starter-1", "starter-0").error);
 });
 test("inherited sigils can be transferred again without increasing receiver capacity", () => {
-  const first = transfer(rulesDeck(), "starter-1", "starter-0", "armor");
-  const second = transfer(first.deck, "starter-0", "starter-3", "armor");
+  const first = transfer(rulesDeck(), "starter-1", "starter-0");
+  const second = transfer(first.deck, "starter-0", "starter-3");
   const receiver = second.deck.find((c) => c.id === "starter-3");
   assert.deepEqual(receiver.native, ["support"]);
   assert.deepEqual(receiver.added, ["armor"]);
-  assert.equal(receiver.capacity, 3);
+  assert.equal(receiver.capacity, 6);
 });
 
 test("animation timeline orders columns left to right and rear before front, without mutating input", () => {
@@ -585,9 +585,9 @@ test("undying unit counts only once per summon and still dies when killed", () =
 });
 
 test("combined sacrifice sigils work on any species, including transferred sigils", () => {
-  let cards = transfer(rulesDeck(), "starter-12", "starter-0", "triple").deck;
+  let cards = transfer(rulesDeck(), "starter-12", "starter-0").deck;
   assert.ok(cards.find((c) => c.id === "starter-0").added.includes("triple"));
-  cards = transfer(cards, "starter-13", "starter-3", "undying").deck;
+  cards = transfer(cards, "starter-13", "starter-3").deck;
   assert.ok(cards.find((c) => c.id === "starter-3").added.includes("undying"));
   const s = quietBattle();
   s.hand.push(makeCard(6, "bear"));

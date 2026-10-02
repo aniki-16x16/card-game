@@ -7,10 +7,7 @@ export default defineConfig({
   base: process.env.GITHUB_ACTIONS ? "/card-game/" : "/",
   build: {
     rolldownOptions: {
-      external: [
-        /^react(?:\/.*)?$/,
-        /^react-dom(?:\/.*)?$/,
-      ],
+      external: [/^react(?:\/.*)?$/, /^react-dom(?:\/.*)?$/],
     },
   },
 });

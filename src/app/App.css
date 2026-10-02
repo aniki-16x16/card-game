@@ -2027,3 +2027,41 @@ footer i {
     animation: none !important;
   }
 }
+.card-added-sigils {
+  position: absolute;
+  top: 43px;
+  left: 7px;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(2, 23px);
+  gap: 3px;
+}
+.card-added-sigils > span {
+  display: grid;
+  place-items: center;
+  width: 23px;
+  height: 23px;
+  color: #ffe39a;
+  background: #573917;
+  border: 1px solid #ffc85b;
+  border-radius: 5px;
+  box-shadow: 0 1px 5px #0009;
+}
+.card-added-sigils svg {
+  width: 17px;
+  height: 17px;
+}
+.compact .card-added-sigils {
+  top: 29px;
+  left: 4px;
+  grid-template-columns: repeat(2, 19px);
+  gap: 2px;
+}
+.compact .card-added-sigils > span {
+  width: 19px;
+  height: 19px;
+}
+.compact .card-added-sigils svg {
+  width: 14px;
+  height: 14px;
+}

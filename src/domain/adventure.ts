@@ -1,6 +1,6 @@
 import { initialDeck, transfer, getRewards } from "./game.ts";
 import { templates, makeCard, TRIBES } from "./cards.ts";
-import type { Card, Sigil, Tribe } from "./cards.ts";
+import type { Card, Tribe } from "./cards.ts";
 import { createRandom, deriveSeed, MAP_SEED } from "./random.ts";
 import { generateMap } from "./mapGenerator.ts";
 import { enemyProfile } from "./enemyAI.ts";
@@ -208,18 +208,16 @@ export function transferAtNode(
   run: Adventure,
   donor: string,
   target: string,
-  sigil: Sigil,
-  removed: Sigil[],
 ): { run: Adventure; error?: string } {
   if (currentNode(run)?.kind !== "transfer" || run.visit?.done)
     return { run, error: "当前不能转移印记。" };
-  const result = transfer(run.deck, donor, target, sigil, removed);
+  const result = transfer(run.deck, donor, target);
   if (result.error) return { run, error: result.error };
   return {
     run: {
       ...run,
       deck: result.deck,
-      visit: { ...run.visit!, done: true, message: "印记已转移，供体已消耗。" },
+      visit: { ...run.visit!, done: true, message: "印记已转移，贡品已消耗。" },
     },
   };
 }

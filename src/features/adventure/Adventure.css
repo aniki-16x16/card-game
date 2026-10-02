@@ -361,3 +361,84 @@ html:has(.adventure > .map-layout)::-webkit-scrollbar,
     display: none;
   }
 }
+.transfer-event {
+  text-align: center;
+}
+.transfer-event.picking {
+  padding-bottom: 250px;
+}
+.transfer-slots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(12px, 4vw, 40px);
+  margin: 24px 0;
+}
+.transfer-slot {
+  width: clamp(115px, 23vw, 170px);
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: #dce5c4;
+}
+.transfer-slot > strong {
+  display: block;
+  margin-bottom: 12px;
+}
+.transfer-slot .card-face,
+.transfer-empty {
+  height: 220px;
+  width: 100%;
+}
+.transfer-empty {
+  display: grid;
+  place-items: center;
+  border: 2px dashed #859968;
+  border-radius: 8px;
+  font-size: 32px;
+}
+.transfer-slot.active .card-face,
+.transfer-slot.active .transfer-empty {
+  outline: 2px solid #f6ce70;
+  outline-offset: 3px;
+}
+.transfer-arrow {
+  flex-shrink: 0;
+  color: #f6ce70;
+}
+.transfer-discard {
+  color: #ffb788;
+}
+.transfer-hand {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  background: #17271ff5;
+  border-top: 1px solid #b9ce87;
+  padding: 12px 20px;
+  box-shadow: 0 -12px 40px #0008;
+}
+.transfer-hand-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.transfer-hand-cards {
+  display: flex;
+  overflow-x: auto;
+  gap: 12px;
+  padding: 4px 4px 12px;
+}
+.transfer-hand-cards > button {
+  flex: 0 0 140px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.transfer-hand-cards > button:hover {
+  outline: 2px solid #f6ce70;
+  border-radius: 6px;
+}

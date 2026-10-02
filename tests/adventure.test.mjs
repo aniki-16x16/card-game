@@ -139,11 +139,11 @@ test("one deletion or transfer per node and minimum deck size", () => {
   const small = event("remove", 1, rulesDeck().slice(0, 6));
   assert.equal(removeCard(small, small.deck[0].id), small);
   const forge = event("transfer"),
-    result = transferAtNode(forge, "starter-1", "starter-0", "armor", []);
+    result = transferAtNode(forge, "starter-1", "starter-0");
   assert.equal(result.error, undefined);
   assert.equal(result.run.deck.length, 13);
   assert.ok(result.run.deck.find((c) => c.id === "starter-0").added.includes("armor"));
-  assert.equal(transferAtNode(result.run, "starter-2", "starter-0", "ranged", []).run, result.run);
+  assert.equal(transferAtNode(result.run, "starter-2", "starter-0").run, result.run);
 });
 test("upgrade first is safe, risks are 1/6 and 1/3, stat and target are fixed per visit", () => {
   const r = event("upgrade"),

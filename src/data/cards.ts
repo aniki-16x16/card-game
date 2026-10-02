@@ -20,7 +20,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 3,
     native: [],
     art: "wolf",
-    capacity: 3,
   },
   {
     species: "deer",
@@ -31,7 +30,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 4,
     native: ["migrate"],
     art: "deer",
-    capacity: 3,
   },
   {
     species: "owl",
@@ -42,7 +40,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["ranged"],
     art: "owl",
-    capacity: 3,
   },
   {
     species: "beetle",
@@ -53,7 +50,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["armor"],
     art: "beetle",
-    capacity: 3,
   },
   {
     species: "moth",
@@ -64,7 +60,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: ["rebirth", "legacy"],
     art: "moth",
-    capacity: 3,
   },
   {
     species: "fox",
@@ -75,7 +70,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: [],
     art: "fox",
-    capacity: 3,
   },
   {
     species: "bear",
@@ -86,7 +80,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 6,
     native: ["thorns"],
     art: "bear",
-    capacity: 3,
   },
   {
     species: "heron",
@@ -97,7 +90,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 3,
     native: ["split"],
     art: "heron",
-    capacity: 3,
   },
   {
     species: "goat",
@@ -108,7 +100,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: ["triple"],
     art: "goat",
-    capacity: 3,
   },
   {
     species: "experiment",
@@ -119,7 +110,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: ["undying"],
     art: "experiment",
-    capacity: 3,
   },
   {
     species: "mouse",
@@ -130,7 +120,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: [],
     art: "mouse",
-    capacity: 3,
   },
   {
     species: "rabbit",
@@ -141,7 +130,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: ["breed"],
     art: "rabbit",
-    capacity: 3,
   },
   {
     species: "coyote",
@@ -152,7 +140,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["hunt"],
     art: "wolf",
-    capacity: 3,
   },
   {
     species: "greywolf",
@@ -163,7 +150,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 3,
     native: ["leader"],
     art: "wolf",
-    capacity: 3,
   },
   {
     species: "hyena",
@@ -174,7 +160,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 3,
     native: ["scavenge"],
     art: "wolf",
-    capacity: 3,
   },
   {
     species: "boar",
@@ -185,7 +170,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: ["hunt", "shove"],
     art: "bear",
-    capacity: 3,
   },
   {
     species: "hedgehog",
@@ -196,7 +180,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["thorns"],
     art: "mouse",
-    capacity: 3,
   },
   {
     species: "bat",
@@ -207,7 +190,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: ["flying"],
     art: "moth",
-    capacity: 3,
   },
   {
     species: "fawn",
@@ -218,7 +200,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["growth"],
     art: "deer",
-    capacity: 3,
   },
   {
     species: "chick",
@@ -229,7 +210,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: ["growth"],
     art: "bird",
-    capacity: 3,
   },
   {
     species: "sparrow",
@@ -240,7 +220,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: [],
     art: "bird",
-    capacity: 3,
   },
   {
     species: "crow",
@@ -251,7 +230,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: ["flying"],
     art: "bird",
-    capacity: 3,
   },
   {
     species: "vulture",
@@ -262,7 +240,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["flying", "scavenge"],
     art: "heron",
-    capacity: 3,
   },
   {
     species: "hen",
@@ -273,7 +250,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 3,
     native: ["nest"],
     art: "bird",
-    capacity: 3,
   },
   {
     species: "falcon",
@@ -284,7 +260,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["flying", "dive"],
     art: "bird",
-    capacity: 3,
   },
   {
     species: "albatross",
@@ -295,7 +270,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: ["flying", "migrate"],
     art: "heron",
-    capacity: 3,
   },
   {
     species: "eagle",
@@ -306,7 +280,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 5,
     native: ["flying", "trisplit"],
     art: "bird",
-    capacity: 3,
   },
   {
     species: "pigeon",
@@ -317,7 +290,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["follow"],
     art: "bird",
-    capacity: 3,
   },
   {
     species: "quail",
@@ -328,7 +300,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["reinforce"],
     art: "bird",
-    capacity: 3,
   },
   {
     species: "ant",
@@ -339,7 +310,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: [],
     art: "ant",
-    capacity: 3,
   },
   {
     species: "firefly",
@@ -350,7 +320,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["catalyst"],
     art: "beetle",
-    capacity: 3,
   },
   {
     species: "mayfly",
@@ -361,7 +330,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: ["flying", "shortlived"],
     art: "moth",
-    capacity: 3,
   },
   {
     species: "worker",
@@ -372,7 +340,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["porter"],
     art: "ant",
-    capacity: 3,
   },
   {
     species: "caterpillar",
@@ -383,7 +350,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 3,
     native: ["metamorph", "seed"],
     art: "caterpillar",
-    capacity: 3,
   },
   {
     species: "mantis",
@@ -394,7 +360,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["split"],
     art: "ant",
-    capacity: 3,
   },
   {
     species: "queen",
@@ -405,7 +370,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 6,
     native: ["swarm"],
     art: "bee",
-    capacity: 3,
   },
   {
     species: "cricket",
@@ -416,7 +380,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: [],
     art: "ant",
-    capacity: 3,
   },
   {
     species: "ladybug",
@@ -427,7 +390,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["armor"],
     art: "beetle",
-    capacity: 3,
   },
   {
     species: "cicada",
@@ -438,7 +400,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["brood", "flying"],
     art: "moth",
-    capacity: 3,
   },
   {
     species: "gecko",
@@ -449,7 +410,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: [],
     art: "lizard",
-    capacity: 3,
   },
   {
     species: "turtle",
@@ -460,7 +420,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: [],
     art: "turtle",
-    capacity: 3,
   },
   {
     species: "snake",
@@ -471,7 +430,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: ["poison"],
     art: "snake",
-    capacity: 3,
   },
   {
     species: "lizard",
@@ -482,7 +440,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["tail"],
     art: "lizard",
-    capacity: 3,
   },
   {
     species: "tortoise",
@@ -493,7 +450,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 3,
     native: ["armor"],
     art: "turtle",
-    capacity: 3,
   },
   {
     species: "chameleon",
@@ -504,7 +460,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["stealth"],
     art: "lizard",
-    capacity: 3,
   },
   {
     species: "python",
@@ -515,7 +470,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 4,
     native: ["devour"],
     art: "snake",
-    capacity: 3,
   },
   {
     species: "crocodile",
@@ -526,7 +480,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 6,
     native: ["ambush"],
     art: "lizard",
-    capacity: 3,
   },
   {
     species: "skink",
@@ -537,7 +490,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: ["search"],
     art: "lizard",
-    capacity: 3,
   },
   {
     species: "iguana",
@@ -548,7 +500,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 3,
     native: ["intimidate"],
     art: "lizard",
-    capacity: 3,
   },
   {
     species: "spiderling",
@@ -559,7 +510,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: ["web"],
     art: "spider",
-    capacity: 3,
   },
   {
     species: "orbweaver",
@@ -570,7 +520,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["web"],
     art: "spider",
-    capacity: 3,
   },
   {
     species: "venomspider",
@@ -581,7 +530,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: ["web", "poison"],
     art: "spider",
-    capacity: 3,
   },
   {
     species: "wolfspider",
@@ -592,7 +540,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["birdcatcher"],
     art: "spider",
-    capacity: 3,
   },
   {
     species: "squirrel",
@@ -603,7 +550,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: [],
     art: "squirrel",
-    capacity: 3,
   },
   {
     species: "viper",
@@ -614,7 +560,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: [],
     art: "snake",
-    capacity: 3,
   },
   {
     species: "wolfpup",
@@ -625,7 +570,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["growth"],
     art: "wolf",
-    capacity: 3,
   },
   {
     species: "hound",
@@ -636,7 +580,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 3,
     native: ["burrow"],
     art: "wolf",
-    capacity: 3,
   },
   {
     species: "arcticfox",
@@ -647,7 +590,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["stealth", "migrate"],
     art: "fox",
-    capacity: 3,
   },
   {
     species: "jackal",
@@ -658,7 +600,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 3,
     native: ["scavenge", "intimidate"],
     art: "wolf",
-    capacity: 3,
   },
   {
     species: "stag",
@@ -669,7 +610,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 6,
     native: ["shove"],
     art: "deer",
-    capacity: 3,
   },
   {
     species: "reindeer",
@@ -680,7 +620,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 3,
     native: ["support"],
     art: "deer",
-    capacity: 3,
   },
   {
     species: "elk",
@@ -691,7 +630,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 4,
     native: ["intimidate"],
     art: "deer",
-    capacity: 3,
   },
   {
     species: "rat",
@@ -702,7 +640,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["reinforce"],
     art: "mouse",
-    capacity: 3,
   },
   {
     species: "dormouse",
@@ -713,7 +650,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["kin"],
     art: "mouse",
-    capacity: 3,
   },
   {
     species: "capybara",
@@ -724,7 +660,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 5,
     native: ["submerge"],
     art: "mouse",
-    capacity: 3,
   },
   {
     species: "hare",
@@ -735,7 +670,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: ["migrate", "rush"],
     art: "rabbit",
-    capacity: 3,
   },
   {
     species: "snowhare",
@@ -746,7 +680,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["burrow"],
     art: "rabbit",
-    capacity: 3,
   },
   {
     species: "jackrabbit",
@@ -757,7 +690,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 4,
     native: ["breed", "migrate"],
     art: "rabbit",
-    capacity: 3,
   },
   {
     species: "soldierant",
@@ -768,7 +700,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["colony"],
     art: "ant",
-    capacity: 3,
   },
   {
     species: "wingedant",
@@ -779,7 +710,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: ["flying", "porter"],
     art: "ant",
-    capacity: 3,
   },
   {
     species: "antqueen",
@@ -790,7 +720,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 5,
     native: ["relay", "porter"],
     art: "ant",
-    capacity: 3,
   },
   {
     species: "honeybee",
@@ -801,7 +730,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["flying", "support"],
     art: "bee",
-    capacity: 3,
   },
   {
     species: "bumblebee",
@@ -812,7 +740,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 3,
     native: ["flying", "armor"],
     art: "bee",
-    capacity: 3,
   },
   {
     species: "scoutbee",
@@ -823,7 +750,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: ["flying", "recall"],
     art: "bee",
-    capacity: 3,
   },
   {
     species: "guardbee",
@@ -834,7 +760,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["flying", "reinforce"],
     art: "bee",
-    capacity: 3,
   },
   {
     species: "minnow",
@@ -845,7 +770,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: ["submerge"],
     art: "fish",
-    capacity: 3,
   },
   {
     species: "carp",
@@ -856,7 +780,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 3,
     native: ["submerge"],
     art: "fish",
-    capacity: 3,
   },
   {
     species: "trout",
@@ -867,7 +790,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 1,
     native: ["submerge", "migrate"],
     art: "fish",
-    capacity: 3,
   },
   {
     species: "piranha",
@@ -878,7 +800,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["submerge", "hunt"],
     art: "fish",
-    capacity: 3,
   },
   {
     species: "eel",
@@ -889,7 +810,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 3,
     native: ["submerge", "stealth"],
     art: "fish",
-    capacity: 3,
   },
   {
     species: "pufferfish",
@@ -900,7 +820,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 3,
     native: ["submerge", "thorns"],
     art: "fish",
-    capacity: 3,
   },
   {
     species: "sturgeon",
@@ -911,7 +830,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 4,
     native: ["submerge", "armor"],
     art: "fish",
-    capacity: 3,
   },
   {
     species: "shark",
@@ -922,7 +840,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 5,
     native: ["submerge", "devour"],
     art: "fish",
-    capacity: 3,
   },
   {
     species: "bearcub",
@@ -933,7 +850,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 3,
     native: ["growth", "seed"],
     art: "bear",
-    capacity: 3,
   },
   {
     species: "blackbear",
@@ -944,7 +860,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 4,
     native: ["fury"],
     art: "bear",
-    capacity: 3,
   },
   {
     species: "polarbear",
@@ -955,7 +870,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 6,
     native: ["devour"],
     art: "bear",
-    capacity: 3,
   },
   {
     species: "piglet",
@@ -966,7 +880,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 2,
     native: ["growth"],
     art: "bear",
-    capacity: 3,
   },
   {
     species: "forestboar",
@@ -977,7 +890,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 3,
     native: ["shove"],
     art: "bear",
-    capacity: 3,
   },
   {
     species: "warthog",
@@ -988,7 +900,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 4,
     native: ["thorns", "blood"],
     art: "bear",
-    capacity: 3,
   },
   {
     species: "sheep",
@@ -999,7 +910,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 4,
     native: ["triple", "ember"],
     art: "goat",
-    capacity: 3,
   },
   {
     species: "ram",
@@ -1010,7 +920,6 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 3,
     native: ["shove"],
     art: "goat",
-    capacity: 3,
   },
   {
     species: "ibex",
@@ -1021,6 +930,5 @@ export const templates: Omit<Card, "id" | "added">[] = [
     health: 4,
     native: ["migrate", "armor"],
     art: "goat",
-    capacity: 3,
   },
 ];

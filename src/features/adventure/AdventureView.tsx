@@ -13,9 +13,8 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { CardFace } from "../../components/cards/Cards";
-import { SigilIcon } from "../../components/cards/SigilIcon";
 import { SIGILS, sigils, transfer } from "../../domain/game";
-import type { Card, Sigil } from "../../domain/game";
+import type { Card } from "../../domain/game";
 import {
   availableNodes,
   getMapReachability,
@@ -142,101 +141,92 @@ function ForgeEvent({
   onChange: (r: Adventure) => void;
   onInspect: (c: Card) => void;
 }) {
-  const [donor, setDonor] = useState(""),
-    [target, setTarget] = useState(""),
-    [chosen, setChosen] = useState<Sigil | "">(""),
-    [removed, setRemoved] = useState<Sigil[]>([]);
-  const a = run.deck.find((c) => c.id === donor),
-    b = run.deck.find((c) => c.id === target);
-  const preview = a && b && chosen ? transfer(run.deck, donor, target, chosen, removed) : null;
+  const [donor, setDonor] = useState("");
+  const [target, setTarget] = useState("");
+  const [picking, setPicking] = useState<"donor" | "target" | null>(null);
+  const a = run.deck.find((c) => c.id === donor);
+  const b = run.deck.find((c) => c.id === target);
+  const preview = a && b ? transfer(run.deck, donor, target) : null;
+  const result = preview && !preview.error ? preview.deck.find((c) => c.id === target) : b;
+  const choices = run.deck.filter((c) =>
+    picking === "donor" ? c.id !== target && sigils(c).length > 0 : c.id !== donor,
+  );
   return (
-    <>
-      <div className="event-fields">
-        <label>
-          供体（会被消耗）
-          <select
-            value={donor}
-            onChange={(e) => {
-              setDonor(e.target.value);
-              setChosen("");
-            }}
-          >
-            <option value="">选择供体</option>
-            {run.deck.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} · {c.attack}/{c.health}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          受体
-          <select
-            value={target}
-            onChange={(e) => {
-              setTarget(e.target.value);
-              setRemoved([]);
-            }}
-          >
-            <option value="">选择受体</option>
-            {run.deck.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} · {c.attack}/{c.health}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <div className="sigil-choices">
-        {a &&
-          sigils(a).map((s) => (
-            <button key={s} className={chosen === s ? "chosen" : ""} onClick={() => setChosen(s)}>
-              <SigilIcon sigil={s} />
-              {SIGILS[s].name}
-            </button>
-          ))}
-      </div>
-      {b && (
-        <div className="replace-options">
-          {b.added.map((s) => (
-            <label key={s}>
-              <input
-                type="checkbox"
-                checked={removed.includes(s)}
-                onChange={(e) =>
-                  setRemoved(e.target.checked ? [...removed, s] : removed.filter((x) => x !== s))
-                }
-              />
-              覆盖 {SIGILS[s].name}
-            </label>
-          ))}
-        </div>
-      )}
-      <div className="event-preview">
-        {a && <CardFace card={a} onInspect={onInspect} />}
-        <ArrowRight />
-        {b && (
-          <CardFace
-            card={preview && !preview.error ? preview.deck.find((c) => c.id === b.id)! : b}
-            onInspect={onInspect}
-          />
-        )}
+    <div className={picking ? "transfer-event picking" : "transfer-event"}>
+      <div className="transfer-slots">
+        <button
+          className={"transfer-slot " + (picking === "donor" ? "active" : "")}
+          aria-label="选择贡品"
+          aria-pressed={picking === "donor"}
+          onClick={() => setPicking(picking === "donor" ? null : "donor")}
+        >
+          <strong>贡品</strong>
+          {a ? (
+            <CardFace card={a} onInspect={onInspect} />
+          ) : (
+            <span className="transfer-empty">＋</span>
+          )}
+        </button>
+        <ArrowRight className="transfer-arrow" aria-label="转移至" />
+        <button
+          className={"transfer-slot " + (picking === "target" ? "active" : "")}
+          aria-label="选择接受方"
+          aria-pressed={picking === "target"}
+          onClick={() => setPicking(picking === "target" ? null : "target")}
+        >
+          <strong>接受方</strong>
+          {result ? (
+            <CardFace card={result} onInspect={onInspect} />
+          ) : (
+            <span className="transfer-empty">＋</span>
+          )}
+        </button>
       </div>
       {preview?.error && (
         <p className="error-text" role="status">
           {preview.error}
         </p>
       )}
+      {!!preview?.discarded?.length && (
+        <p className="transfer-discard" role="status">
+          容量不足，将舍弃：{preview.discarded.map((s) => SIGILS[s].name).join("、")}
+        </p>
+      )}
       <button
         className="primary"
-        disabled={!preview || !!preview.error || !chosen}
-        onClick={() => {
-          if (chosen) onChange(transferAtNode(run, donor, target, chosen, removed).run);
-        }}
+        disabled={!preview || !!preview.error}
+        onClick={() => onChange(transferAtNode(run, donor, target).run)}
       >
-        确认转移
+        {a ? "消耗" + a.name + "并转移" : "确认转移"}
       </button>
-    </>
+      {picking && (
+        <section
+          className="transfer-hand"
+          aria-label={picking === "donor" ? "选择贡品手牌" : "选择接受方手牌"}
+        >
+          <div className="transfer-hand-heading">
+            <strong>{picking === "donor" ? "选择贡品" : "选择接受方"}</strong>
+            <button onClick={() => setPicking(null)}>收起</button>
+          </div>
+          <div className="transfer-hand-cards">
+            {choices.map((c) => (
+              <button
+                key={c.id}
+                aria-label={"选择" + c.name}
+                onClick={() => {
+                  if (picking === "donor") setDonor(c.id);
+                  else setTarget(c.id);
+                  setPicking(null);
+                }}
+              >
+                <CardFace card={c} onInspect={onInspect} />
+              </button>
+            ))}
+          </div>
+          {!choices.length && <p>没有可选的卡牌</p>}
+        </section>
+      )}
+    </div>
   );
 }
 

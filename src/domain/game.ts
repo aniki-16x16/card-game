@@ -1,5 +1,5 @@
 import { MAP_SEED, createRandom, deriveSeed } from "./random.ts";
-import { templates, makeCard, creature, makeSquirrel, sigils, load } from "./cards.ts";
+import { templates, makeCard, creature, makeSquirrel, sigils, load, SIGILS } from "./cards.ts";
 import type { Card, Sigil } from "./cards.ts";
 import { STARTER_DECK } from "../data/starterDeck.ts";
 import { BattleEngine, SearchPause } from "./battleEngine.ts";
@@ -60,19 +60,27 @@ export function transfer(
   deck: Card[],
   donorId: string,
   targetId: string,
-  sigil: Sigil,
-  remove: Sigil[] = [],
-): { deck: Card[]; error?: string } {
+): { deck: Card[]; error?: string; discarded?: Sigil[] } {
   const donor = deck.find((c) => c.id === donorId),
     target = deck.find((c) => c.id === targetId);
   const fail = (error: string) => ({ deck, error });
   if (!donor || !target || donorId === targetId) return fail("请选择不同的供体和受体。");
   if (deck.length <= 6) return fail("牌组至少需要保留 6 张卡。");
-  if (!sigils(donor).includes(sigil)) return fail("供体不拥有这个印记。");
-  if (sigils(target).includes(sigil)) return fail("受体已经拥有这个印记。");
-  const next = { ...target, added: [...target.added.filter((s) => !remove.includes(s)), sigil] };
-  if (load(next) > target.capacity) return fail("容量不足，请勾选要覆盖的外来印记。");
-  return { deck: deck.filter((c) => c.id !== donorId).map((c) => (c.id === targetId ? next : c)) };
+  if (!sigils(donor).length) return fail("贡品没有印记。");
+  const next = { ...target, capacity: 6, added: [...target.added] };
+  const discarded: Sigil[] = [];
+  for (const sigil of sigils(donor)) {
+    if (sigils(next).includes(sigil)) continue;
+    if (next.added.length >= 4 || load(next) + SIGILS[sigil].weight > 6) {
+      discarded.push(sigil);
+      continue;
+    }
+    next.added.push(sigil);
+  }
+  return {
+    discarded,
+    deck: deck.filter((c) => c.id !== donorId).map((c) => (c.id === targetId ? next : c)),
+  };
 }
 export function getIntents(
   round: number,

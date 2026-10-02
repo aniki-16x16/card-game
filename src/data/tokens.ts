@@ -11,7 +11,6 @@ export const tokenTemplates: Record<TokenKind, Omit<Card, "id" | "added">> = {
     health: 1,
     native: [],
     cost: 0,
-    capacity: 3,
     token: true,
   },
   larva: {
@@ -23,7 +22,6 @@ export const tokenTemplates: Record<TokenKind, Omit<Card, "id" | "added">> = {
     health: 1,
     native: [],
     cost: 0,
-    capacity: 3,
     token: true,
   },
   egg: {
@@ -35,7 +33,6 @@ export const tokenTemplates: Record<TokenKind, Omit<Card, "id" | "added">> = {
     health: 1,
     native: ["growth"],
     cost: 0,
-    capacity: 3,
     token: true,
   },
   butterfly: {
@@ -47,7 +44,6 @@ export const tokenTemplates: Record<TokenKind, Omit<Card, "id" | "added">> = {
     health: 3,
     native: ["flying"],
     cost: 0,
-    capacity: 3,
     token: true,
   },
   bee: {
@@ -59,7 +55,6 @@ export const tokenTemplates: Record<TokenKind, Omit<Card, "id" | "added">> = {
     health: 1,
     native: ["flying", "shortlived"],
     cost: 0,
-    capacity: 3,
     token: true,
   },
   tailToken: {
@@ -71,7 +66,6 @@ export const tokenTemplates: Record<TokenKind, Omit<Card, "id" | "added">> = {
     health: 1,
     native: [],
     cost: 0,
-    capacity: 3,
     token: true,
   },
 };

@@ -199,7 +199,7 @@ export type Card = {
   cost: number;
   native: Sigil[];
   added: Sigil[];
-  capacity: number;
+  capacity?: number;
   token?: boolean;
   costDiscount?: number;
   returnState?: {

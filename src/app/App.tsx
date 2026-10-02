@@ -248,9 +248,9 @@ function Game() {
             </div>
           </div>
           <div className="sigil-detail-capacity">
-            外来印记容量{" "}
+            后天印记{" "}
             <strong>
-              {load(inspected)} / {inspected.capacity}
+              {load(inspected)} / 6 点 · {inspected.added.length} / 4 个
             </strong>
           </div>
           <div className="sigil-detail-list">
