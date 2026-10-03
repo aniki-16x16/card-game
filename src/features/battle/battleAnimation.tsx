@@ -17,7 +17,7 @@ export async function animateBattleAction(
   retained?: (() => void)[],
   resolve = find,
 ) {
-  // 天平受击只由 BalanceScale 的游标移动反馈，不生成数字，也不抖动刻度。
+  // 天平受击由 BalanceScale 的游标、亮起和刻度反馈统一呈现，不额外生成数字或震动。
   if (action.kind === "hit" && (action.target === "life-player" || action.target === "life-enemy"))
     return;
   const source = resolve(action.source),

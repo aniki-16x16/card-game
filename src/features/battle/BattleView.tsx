@@ -14,16 +14,12 @@ type Props = {
   battle: Battle;
   selected: string | null;
   settling: boolean;
-  canForge: boolean;
   onSelect: (id: string | null) => void;
   onDeploy: (row: number, col: number) => void;
   onSacrifice: (id: string) => void;
   onDraw: (pile: DrawPile) => void;
   onInspect: (card: Card | Unit) => void;
   onEnd: () => void;
-  onForge: () => void;
-  onReset: () => void;
-  onLog: () => void;
 };
 
 export function BattleView(props: Props) {
@@ -101,9 +97,6 @@ export function BattleView(props: Props) {
             <strong>{ENEMIES[battle.enemyAI.profile].name}</strong>
           </div>
         )}
-        <div className="combat-scale" aria-label="战斗天平">
-          <BalanceScale balance={battle.balance} />
-        </div>
         <div className="combat-round">
           <span>回合</span>
           <strong>{String(battle.round).padStart(2, "0")}</strong>
@@ -115,21 +108,6 @@ export function BattleView(props: Props) {
                 : "你的部署阶段"}
           </span>
         </div>
-
-        <div className="rail-menu">
-          <a
-            href={`${import.meta.env.BASE_URL}creatures`}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="在新标签页打开生物图鉴"
-          >
-            生物图鉴 ↗
-          </a>
-          <button onClick={props.onLog}>战斗记录</button>
-          <button disabled={settling} onClick={props.onReset}>
-            重新开始
-          </button>
-        </div>
       </aside>
 
       <section
@@ -137,6 +115,9 @@ export function BattleView(props: Props) {
         aria-label="战场"
         style={cameraStyle}
       >
+        <div className="combat-scale" aria-label="战斗天平">
+          <BalanceScale balance={battle.balance} />
+        </div>
         <div className="camera-viewport" ref={viewport} aria-label="完整牌桌">
           <div
             className="camera-space"
@@ -239,24 +220,6 @@ export function BattleView(props: Props) {
       </section>
 
       <aside className="combat-rail right-rail" aria-label="战斗操作">
-        {battle.intents.slice(0, 1).map((intent) => (
-          <div className="enemy-preview" key={intent.card.id} aria-label="敌方来袭">
-            <span>
-              来袭 · {intent.row === 0 ? "前排" : "后排"} 第 {intent.col + 1} 列
-            </span>
-            <button
-              data-motion={`intent-${intent.card.id}`}
-              aria-label={`查看来袭 ${intent.card.name}`}
-              disabled={props.settling}
-              onClick={() => onInspect(intent.card)}
-            >
-              <CardFace card={intent.card} compact onInspect={onInspect} />
-            </button>
-          </div>
-        ))}
-        <button className="rail-forge" disabled={settling} onClick={props.onForge}>
-          查看地图
-        </button>
         {(settling || card) && (
           <div className="combat-instruction" role="status">
             {settling ? (
@@ -272,7 +235,6 @@ export function BattleView(props: Props) {
                       {choosingSacrifices ? "取消献祭" : "取消选择"}
                     </button>
                   )}
-                  <button onClick={() => onInspect(card)}>查看印记</button>
                 </>
               )
             )}

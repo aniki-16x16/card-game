@@ -36,37 +36,9 @@
 .enemy-profile strong {
   font-weight: 500;
 }
-.enemy-preview {
-  display: grid;
-  gap: 8px;
-  color: #cba28b;
-  font-size: 12px;
-}
-.enemy-preview > button {
-  height: 140px;
-  width: 110px;
-  padding: 0;
-  background: #543a3026;
-  border: 1px solid #c79f7250;
-  border-radius: 6px;
-}
-.enemy-preview > button:hover {
-  border-color: #d5ba91;
-}
 @media (max-width: 760px) {
   .enemy-profile {
     font-size: 12px;
-  }
-  .enemy-preview {
-    gap: 4px;
-  }
-  .enemy-preview > button {
-    height: 106px;
-    width: 90px;
-  }
-  .enemy-preview .creature {
-    height: 40px;
-    width: 48px;
   }
 }
 .combat-identity {
@@ -141,32 +113,6 @@
   font-size: 42px;
   font-weight: 400;
   line-height: 1;
-}
-.rail-menu {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: auto;
-}
-.rail-menu button {
-  background: none;
-  padding: 0;
-  font-size: 13px;
-  color: #9dae8f;
-}
-.rail-menu button:hover {
-  color: #deebc0;
-}
-.rail-forge {
-  padding: 11px 8px;
-  background: #afc1840d;
-  border: 1px solid #a8bb7933;
-  border-radius: 5px;
-  font-size: 15px;
-  color: #c6d8a4;
-}
-.rail-forge:disabled {
-  opacity: 0.35;
 }
 .combat-resource {
   margin-top: auto;
@@ -568,17 +514,6 @@
   font-weight: 400;
   margin-left: 12px;
 }
-.battle-log-dialog {
-  list-style: none;
-  padding: 0;
-  font-size: 15px;
-  line-height: 1.9;
-  color: #b3c79b;
-}
-.battle-log-dialog li {
-  padding: 10px 0;
-  border-bottom: 1px solid #89a26930;
-}
 .modal .primary,
 .modal .secondary {
   font-size: 15px;
@@ -712,20 +647,11 @@
     grid-row: 3;
   }
   .combat-identity,
-  .rail-menu,
   .combat-round > span:first-child,
   .combat-instruction,
   .combat-deck,
   .combat-resource > div {
     display: none;
-  }
-  .rail-menu {
-    display: flex;
-    gap: 9px;
-    margin-top: 0;
-  }
-  .rail-menu button {
-    font-size: 12px;
   }
   .combat-life {
     gap: 4px;
@@ -772,12 +698,6 @@
   }
   .combat-resource small {
     font-size: 14px;
-  }
-  .rail-forge {
-    font-size: 13px;
-    padding: 8px;
-    align-self: flex-end;
-    width: calc(100% - 24px);
   }
   .combat-end {
     padding: 10px;

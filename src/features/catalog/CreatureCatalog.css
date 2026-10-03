@@ -71,11 +71,6 @@
 .catalog-description .catalog-muted {
   color: #788d76;
 }
-.rail-menu a {
-  color: #9dae8f;
-  font-size: 13px;
-  text-decoration: none;
-}
 @media (max-width: 540px) {
   .creature-catalog {
     padding: 24px 16px 40px;

@@ -172,7 +172,6 @@ export function SigilCheck() {
           selected={battle.summon?.cardId ?? null}
           settling={settling}
           actionLabel={actionLabel}
-          canForge={false}
           onSelect={(id) => setBattle(selectSummon(battle, id))}
           onDeploy={(row, col) => void play(planDeploy(battle, battle.summon!.cardId, row, col))}
           onSacrifice={(id) => void play(markSacrifice(battle, id))}
@@ -187,9 +186,6 @@ export function SigilCheck() {
             )
           }
           onInspect={() => {}}
-          onForge={() => {}}
-          onReset={() => reset(scene)}
-          onLog={() => {}}
         />
       </div>
       {!settling && (

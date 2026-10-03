@@ -51,7 +51,6 @@ function Game() {
   const { battle, setBattle, settling, actionLabel } = controller;
   const [inspected, setInspected] = useState<Card | Unit | null>(null);
   const [reset, setReset] = useState(false),
-    [showLog, setShowLog] = useState(false),
     [showMap, setShowMap] = useState(false);
   const [showMenu, setShowMenu] = useState(false),
     [showDeck, setShowDeck] = useState(false);
@@ -132,15 +131,11 @@ function Game() {
             battle={battle}
             selected={selected}
             settling={settling}
-            canForge={false}
             onSelect={controller.select}
             onSacrifice={controller.sacrifice}
             onDraw={controller.draw}
             onInspect={setInspected}
             onEnd={controller.end}
-            onForge={() => setShowMap(true)}
-            onReset={() => setReset(true)}
-            onLog={() => setShowLog(true)}
             onDeploy={controller.deploy}
           />
         </main>
@@ -216,16 +211,6 @@ function Game() {
             ))}
             {!sigils(inspected).length && <p>无印记。</p>}
           </div>
-        </Modal>
-      )}
-      {showLog && battle && (
-        <Modal label="战斗记录" onClose={() => setShowLog(false)}>
-          <h2>战斗记录</h2>
-          <ol className="battle-log-dialog">
-            {battle.log.map((line, i) => (
-              <li key={i}>{line}</li>
-            ))}
-          </ol>
         </Modal>
       )}
       {showMap && (

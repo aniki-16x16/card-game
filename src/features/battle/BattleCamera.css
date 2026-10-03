@@ -19,6 +19,15 @@
   align-items: center;
   justify-content: center;
 }
+.camera-field .combat-scale {
+  flex: none;
+  width: min(340px, calc(100% - 32px));
+  height: 66px;
+  margin: 0 auto 12px;
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
 .camera-space {
   position: relative;
   flex: none;
@@ -314,26 +323,9 @@
     align-items: flex-start;
     margin: 0;
   }
-  .combat-scale {
-    margin: 0;
-    width: 130px;
-  }
-  .balance-ruler {
-    margin-block: 4px;
-  }
-  .rail-menu {
-    margin-top: 0;
-    gap: 6px;
-    flex-wrap: wrap;
-  }
-  .rail-menu a,
-  .rail-menu button {
-    font-size: 11px;
-  }
-  .rail-forge {
-    width: auto;
-    font-size: 12px;
-    padding: 6px 8px;
+  .camera-field .combat-scale {
+    width: min(300px, calc(100% - 24px));
+    margin-bottom: 6px;
   }
   .combat-end {
     margin-top: 0;
