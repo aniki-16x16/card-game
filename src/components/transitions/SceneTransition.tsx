@@ -2,22 +2,24 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { SceneTransitionContext } from "./SceneTransitionContext";
+import { randomTransition, transitionPath } from "./transitionGeometry";
 import "./SceneTransition.css";
 
 export function SceneTransitionProvider({ children }: { children: ReactNode }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const svg = useRef<SVGSVGElement>(null);
+  const path = useRef<SVGPathElement>(null);
   const locked = useRef(false);
   const mounted = useRef(false);
-  const animations = useRef<Animation[]>([]);
+  const cancelFrame = useRef<(() => void) | null>(null);
   const [active, setActive] = useState(false);
-  const [grid, setGrid] = useState({ columns: 1, rows: 1, width: 1, height: 1, size: 1 });
 
   useEffect(() => {
     mounted.current = true;
     const overlay = dialog.current;
     return () => {
       mounted.current = false;
-      animations.current.forEach((animation) => animation.cancel());
+      cancelFrame.current?.();
       overlay?.close();
     };
   }, []);
@@ -25,60 +27,74 @@ export function SceneTransitionProvider({ children }: { children: ReactNode }) {
   const start = useCallback((commit: () => void) => {
     if (locked.current || !mounted.current) return;
     locked.current = true;
-    const width = window.innerWidth,
-      height = window.innerHeight;
-    const size = Math.max(72, Math.sqrt((width * height) / 320));
-    const columns = Math.ceil(width / size);
-    const rows = Math.ceil(height / size);
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    flushSync(() => {
-      setGrid({ columns, rows, width, height, size });
-      setActive(true);
-    });
+    flushSync(() => setActive(true));
     const overlay = dialog.current!;
-    // The top layer also covers battle-result dialogs and traps keyboard input.
-    overlay.showModal();
-    // Establish SVG geometry on its first display before starting transform-box animations.
-    overlay.getBoundingClientRect();
-    const circles = Array.from(overlay.querySelectorAll("circle"));
+    const coverEffect = randomTransition();
+    const revealEffect = randomTransition();
+
+    function draw(effect: ReturnType<typeof randomTransition>, coverage: number) {
+      const width = window.innerWidth,
+        height = window.innerHeight;
+      svg.current!.setAttribute("viewBox", `0 0 ${width} ${height}`);
+      path.current!.setAttribute("d", transitionPath(effect, coverage, width, height));
+    }
 
     async function wave(cover: boolean) {
-      const previous = animations.current;
-      animations.current = circles.map((circle, index) =>
-        circle.animate(
-          [{ transform: `scale(${cover ? 0 : 1})` }, { transform: `scale(${cover ? 1 : 0})` }],
-          {
-            duration: reduced ? 1 : 320,
-            delay: reduced
-              ? 0
-              : (((index % columns) + Math.floor(index / columns)) /
-                  Math.max(1, columns + rows - 2)) *
-                460,
-            easing: cover ? "cubic-bezier(.4, 0, .7, 1)" : "cubic-bezier(.3, 0, .6, 1)",
-            fill: "both",
-          },
-        ),
-      );
-      previous.forEach((animation) => animation.cancel());
-      await Promise.all(animations.current.map((animation) => animation.finished));
+      const effect = cover ? coverEffect : revealEffect;
+      draw(effect, cover ? 0 : 1);
+      await new Promise<void>((resolve) => {
+        let frame = 0;
+        const started = performance.now();
+        cancelFrame.current = () => {
+          cancelAnimationFrame(frame);
+          resolve();
+        };
+        const tick = (now: number) => {
+          if (!mounted.current) {
+            resolve();
+            return;
+          }
+          const progress = reduced ? 1 : Math.min(1, (now - started) / 780);
+          draw(effect, cover ? progress : 1 - progress);
+          if (progress < 1) frame = requestAnimationFrame(tick);
+          else {
+            cancelFrame.current = null;
+            resolve();
+          }
+        };
+        frame = requestAnimationFrame(tick);
+      });
     }
 
     void (async () => {
       try {
+        draw(coverEffect, 0);
+        // The top layer covers result dialogs and traps keyboard input.
+        overlay.showModal();
         await wave(true);
         if (!mounted.current) return;
-        // All circles overlap before the scene can change. Keep that cover
-        // through layout effects and one complete paint of the new scene.
         flushSync(commit);
-        await new Promise<void>((resolve) =>
-          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-        );
+        // Keep a complete cover through the new scene's first paint.
+        await new Promise<void>((resolve) => {
+          let frame = requestAnimationFrame(() => {
+            frame = requestAnimationFrame(() => {
+              cancelFrame.current = null;
+              resolve();
+            });
+          });
+          cancelFrame.current = () => {
+            cancelAnimationFrame(frame);
+            resolve();
+          };
+        });
         if (!mounted.current) return;
         await wave(false);
       } catch (error) {
         if (mounted.current) console.error("场景过渡失败", error);
       } finally {
-        animations.current.forEach((animation) => animation.cancel());
+        cancelFrame.current?.();
+        cancelFrame.current = null;
         if (mounted.current) {
           overlay.close();
           locked.current = false;
@@ -98,19 +114,8 @@ export function SceneTransitionProvider({ children }: { children: ReactNode }) {
         aria-busy={active}
         onCancel={(event) => event.preventDefault()}
       >
-        <svg
-          viewBox={`0 0 ${grid.width} ${grid.height}`}
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
-          {Array.from({ length: grid.columns * grid.rows }, (_, index) => (
-            <circle
-              key={index}
-              cx={((index % grid.columns) + 0.5) * grid.size}
-              cy={(Math.floor(index / grid.columns) + 0.5) * grid.size}
-              r={grid.size * 0.72}
-            />
-          ))}
+        <svg ref={svg} preserveAspectRatio="none" aria-hidden="true">
+          <path ref={path} />
         </svg>
       </dialog>
     </SceneTransitionContext.Provider>
