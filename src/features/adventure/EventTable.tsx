@@ -16,17 +16,6 @@ export function EventTable({
   onLeave: () => void;
   children: ReactNode;
 }) {
-  useEffect(() => {
-    const escape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.isComposing || document.querySelector("dialog[open]"))
-        return;
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      if (!busy && !onCancel()) onLeave();
-    };
-    window.addEventListener("keydown", escape, true);
-    return () => window.removeEventListener("keydown", escape, true);
-  }, [busy, onCancel, onLeave]);
   return (
     <section
       className="event-table"

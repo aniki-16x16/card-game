@@ -1,11 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
-import { X } from "lucide-react";
+import { useEffect, useLayoutEffect, useState } from "react";
+import { Modal } from "../components/Modal";
 import { useBattleController } from "../features/battle/useBattleController";
 import { Creature } from "../components/creatures/Creature";
 import { CardFace } from "../components/cards/Cards";
 import { SigilIcon } from "../components/cards/SigilIcon";
 import { BattleView } from "../features/battle/BattleView";
+import { PauseMenu } from "../components/PauseMenu";
 import { DeckSearch } from "../features/battle/DeckSearch";
 import { AdventureView, MapView } from "../features/adventure/AdventureView";
 import { SceneTransitionProvider } from "../components/transitions/SceneTransition";
@@ -23,6 +23,7 @@ import type { Adventure } from "../domain/adventure";
 import {
   SIGILS,
   attackPower,
+  awaitingSearch,
   intrinsicAttack,
   load,
   sigils,
@@ -31,49 +32,10 @@ import {
 } from "../domain/game";
 import type { Card, Unit } from "../domain/game";
 import "./App.css";
-import "./GameMenu.css";
 import "../features/battle/BattleView.css";
 import "../features/battle/BattleCamera.css";
 import "../features/battle/BattleAnimation.css";
 
-function Modal({
-  children,
-  onClose,
-  label,
-  wide = false,
-  dismissible = true,
-  className = "",
-}: {
-  children: ReactNode;
-  onClose: () => void;
-  label: string;
-  wide?: boolean;
-  dismissible?: boolean;
-  className?: string;
-}) {
-  const ref = useRef<HTMLDialogElement>(null);
-  useLayoutEffect(() => {
-    ref.current?.showModal();
-  }, []);
-  return (
-    <dialog
-      ref={ref}
-      className={`modal ${wide ? "map-dialog" : ""} ${className}`}
-      onCancel={(event) => {
-        event.preventDefault();
-        if (dismissible) onClose();
-      }}
-      aria-label={label}
-    >
-      {dismissible && (
-        <button className="close" onClick={onClose} aria-label="关闭">
-          <X />
-        </button>
-      )}
-      {children}
-    </dialog>
-  );
-}
 export default function App() {
   return (
     <SceneTransitionProvider>
@@ -93,6 +55,10 @@ function Game() {
     [showMap, setShowMap] = useState(false);
   const [showMenu, setShowMenu] = useState(false),
     [showDeck, setShowDeck] = useState(false);
+  const canPause =
+    !sceneTransition.active &&
+    (!battle ||
+      (battle.status === "playing" && !settling && !controller.pending && !awaitingSearch(battle)));
   useLayoutEffect(() => {
     const previous = window.history.scrollRestoration;
     window.history.scrollRestoration = "manual";
@@ -104,8 +70,10 @@ function Game() {
     function openMenu(event: KeyboardEvent) {
       if (
         event.key !== "Escape" ||
+        event.repeat ||
         event.defaultPrevented ||
         event.isComposing ||
+        !canPause ||
         document.querySelector("dialog[open]")
       )
         return;
@@ -114,7 +82,7 @@ function Game() {
     }
     window.addEventListener("keydown", openMenu);
     return () => window.removeEventListener("keydown", openMenu);
-  }, []);
+  }, [canPause]);
   const selected = battle?.summon?.cardId ?? null;
   function enter(id: string) {
     const next = enterNode(run, id);
@@ -186,35 +154,16 @@ function Game() {
         />
       )}
       {showMenu && (
-        <Modal className="game-menu-dialog" label="游戏菜单" onClose={() => setShowMenu(false)}>
-          <h2>菜单</h2>
-          <nav className="game-menu-actions" aria-label="游戏菜单操作">
-            <button
-              onClick={() => {
-                setShowMenu(false);
-                setShowDeck(true);
-              }}
-            >
-              查看牌组 · {run.deck.length}
-            </button>
-            <a
-              href={`${import.meta.env.BASE_URL}creatures`}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => setShowMenu(false)}
-            >
-              图鉴 ↗
-            </a>
-            <button
-              onClick={() => {
-                setShowMenu(false);
-                setReset(true);
-              }}
-            >
-              重新开始
-            </button>
-          </nav>
-        </Modal>
+        <PauseMenu
+          onClose={() => setShowMenu(false)}
+          actions={[
+            { label: `查看牌组 · ${run.deck.length}`, onSelect: () => setShowDeck(true) },
+            ...(battle
+              ? [{ label: "查看地图", onSelect: () => setShowMap(true) }]
+              : [{ label: "图鉴 ↗", href: `${import.meta.env.BASE_URL}creatures` }]),
+            { label: "重新开始", onSelect: () => setReset(true) },
+          ]}
+        />
       )}
       {battle && !settling && !controller.pending && (
         <DeckSearch battle={battle} onChoose={controller.search} />
@@ -280,44 +229,45 @@ function Game() {
         </Modal>
       )}
       {showMap && (
-        <Modal label="地图与牌组" wide onClose={() => setShowMap(false)}>
-          <h2>当前路线与牌组</h2>
-          <div className="event-deck">
-            {run.deck.map((c) => (
-              <CardFace key={c.id} card={c} />
-            ))}
-          </div>
+        <Modal label="当前地图" className="map-dialog" onClose={() => setShowMap(false)}>
+          <h2>当前地图</h2>
           <MapView run={run} readOnly onEnter={() => {}} />
         </Modal>
       )}
       {reset && (
         <Modal label="重新开始冒险" onClose={() => setReset(false)}>
-          <h2>重新出发？</h2>
-          <p>当前旅程与牌组将被重置。</p>
-          <div className="modal-actions">
-            <button className="secondary" onClick={() => setReset(false)}>
-              继续旅程
-            </button>
-            <button
-              className="primary"
-              onClick={() => {
-                controller.abort();
-                sceneTransition.start(() => {
-                  setRun(newAdventure(Date.now()));
-                  setBattle(null);
-                  setInspected(null);
-                  setShowMap(false);
-                  setShowDeck(false);
-                  setShowMenu(false);
-                  setReset(false);
+          {(close) => (
+            <>
+              <h2>重新出发？</h2>
+              <p>当前旅程与牌组将被重置。</p>
+              <div className="modal-actions">
+                <button className="secondary" onClick={() => close()}>
+                  继续旅程
+                </button>
+                <button
+                  className="primary"
+                  onClick={() =>
+                    close(() => {
+                      controller.abort();
+                      sceneTransition.start(() => {
+                        setRun(newAdventure(Date.now()));
+                        setBattle(null);
+                        setInspected(null);
+                        setShowMap(false);
+                        setShowDeck(false);
+                        setShowMenu(false);
+                        setReset(false);
 
-                  window.scrollTo({ top: 0 });
-                });
-              }}
-            >
-              重新开始
-            </button>
-          </div>
+                        window.scrollTo({ top: 0 });
+                      });
+                    })
+                  }
+                >
+                  重新开始
+                </button>
+              </div>
+            </>
+          )}
         </Modal>
       )}
       {battle && !settling && !controller.pending && battle.status !== "playing" && (
@@ -326,31 +276,37 @@ function Game() {
           label={battle.status === "won" ? "遭遇胜利" : "遭遇失败"}
           onClose={() => {}}
         >
-          <h2>{battle.status === "won" ? "天平为你倾斜。" : "契约止于此处。"}</h2>
-          <p>
-            {battle.status === "won"
-              ? "敌方承压达到 10 点。"
-              : "我方承压达到 10 点，本局冒险结束。"}
-          </p>
-          <button
-            className="primary"
-            onClick={() => {
-              sceneTransition.start(() => {
-                let next = recordBattle(run, battle.status as "won" | "lost");
-                if (battle.status === "won" && currentNode(next)?.kind === "boss")
-                  next = finishNode(next);
-                setRun(next);
-                setBattle(null);
-                window.scrollTo({ top: 0 });
-              });
-            }}
-          >
-            {battle.status === "won"
-              ? currentNode(run)?.kind === "boss"
-                ? "查看通关结算"
-                : "领取战利品"
-              : "查看本局结算"}
-          </button>
+          {(close) => (
+            <>
+              <h2>{battle.status === "won" ? "天平为你倾斜。" : "契约止于此处。"}</h2>
+              <p>
+                {battle.status === "won"
+                  ? "敌方承压达到 10 点。"
+                  : "我方承压达到 10 点，本局冒险结束。"}
+              </p>
+              <button
+                className="primary"
+                onClick={() =>
+                  close(() => {
+                    sceneTransition.start(() => {
+                      let next = recordBattle(run, battle.status as "won" | "lost");
+                      if (battle.status === "won" && currentNode(next)?.kind === "boss")
+                        next = finishNode(next);
+                      setRun(next);
+                      setBattle(null);
+                      window.scrollTo({ top: 0 });
+                    });
+                  })
+                }
+              >
+                {battle.status === "won"
+                  ? currentNode(run)?.kind === "boss"
+                    ? "查看通关结算"
+                    : "领取战利品"
+                  : "查看本局结算"}
+              </button>
+            </>
+          )}
         </Modal>
       )}
     </div>

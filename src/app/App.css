@@ -1387,46 +1387,6 @@ footer i {
   font-size: 9px;
   margin-top: 12px;
 }
-.modal {
-  width: 620px;
-  max-width: calc(100vw - 32px);
-  max-height: 85vh;
-  border: 1px solid #82986770;
-  border-radius: 12px;
-  background: #1b2c23;
-  color: #dce6cb;
-  padding: 32px;
-  box-shadow: 0 30px 120px #0008;
-}
-.modal::backdrop {
-  background: #06100bd9;
-  backdrop-filter: blur(6px);
-}
-.close {
-  position: absolute;
-  right: 13px;
-  top: 10px;
-  background: none;
-  font-size: 25px;
-  color: #8ba278;
-}
-.modal h2 {
-  font-size: 25px;
-  font-weight: 500;
-  letter-spacing: 2px;
-  margin: 12px 0 23px;
-}
-.modal-description {
-  font-size: 12px;
-  line-height: 2;
-  color: #9baf8c;
-}
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 25px;
-}
 .secondary {
   background: #32472e;
   border: 1px solid #718f5550;
@@ -1994,12 +1954,6 @@ footer i {
     padding-block: 20px;
     gap: 8px;
   }
-  .modal {
-    padding: 25px 20px;
-  }
-  .modal h2 {
-    font-size: 21px;
-  }
   .reward-cards {
     gap: 8px;
   }
@@ -2014,9 +1968,6 @@ footer i {
   }
   .reward-cards button > span {
     font-size: 9px;
-  }
-  .modal-description {
-    font-size: 11px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

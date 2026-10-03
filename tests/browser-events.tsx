@@ -2,6 +2,11 @@ import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { NodeEvent } from "../src/features/adventure/AdventureView";
+import { PauseMenu } from "../src/components/PauseMenu";
+import { Modal } from "../src/components/Modal";
+import { DeckSearch } from "../src/features/battle/DeckSearch";
+import { chooseSearch, initialDeck, startBattle } from "../src/domain/game";
+import type { Battle } from "../src/domain/game";
 import { creature } from "../src/domain/game";
 import type { Adventure, NodeKind } from "../src/domain/adventure";
 import "../src/app/index.css";
@@ -24,6 +29,10 @@ function sample(kind: NodeKind): Adventure {
 }
 let current = sample("transfer");
 let show: (kind: NodeKind) => void;
+let showPause: (open: boolean) => void;
+let showModalCheck: () => void;
+let showSearch: () => void;
+let pauseActions = 0;
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const query = (selector: string) => {
   const element = document.querySelector<HTMLButtonElement>(selector);
@@ -128,6 +137,7 @@ async function hold(duration: number) {
 }
 async function checks() {
   const results: string[] = [];
+  pauseActions = 0;
   await checkDeal(() => show("tribe"), 850);
   await checkDeal(() => query(".category-card").click(), 1800);
   results.push("PASS dealing: category and reward stages start hidden and fade monotonically");
@@ -139,9 +149,12 @@ async function checks() {
     "sigilless donor must be excluded",
   );
   key(document.body, "keydown", "Escape");
+  await delay(300);
+  check(document.querySelector(".event-hand"), "Escape preserves the hand for the pause menu");
+  await click(".event-table");
   check(document.querySelector(".event-hand"), "closing hand stays mounted for its exit animation");
   await delay(300);
-  check(!document.querySelector(".event-hand"), "Escape closes hand before leaving");
+  check(!document.querySelector(".event-hand"), "table background closes hand before leaving");
   await place("donor", "sample-1");
   await place("target", "sample-0");
   check(current.deck.length === 9 && !current.visit?.done, "placement is a preview only");
@@ -176,17 +189,103 @@ async function checks() {
   check(current.deck.length === 9 && current.visit, "first click only selects reward");
   key(document.body, "keydown", "Escape");
   await delay(30);
-  check(current.visit && !document.querySelector(".is-selected"), "escape cancels reward");
+  check(
+    current.visit && document.querySelector(".is-selected"),
+    "Escape preserves reward selection",
+  );
+  await click(".event-table");
+  check(
+    current.visit && !document.querySelector(".is-selected"),
+    "table background cancels reward",
+  );
   await click(".reward-card");
   await click(".reward-card");
   await delay(1000);
   check(current.deck.length === 10 && !current.visit, "second click collects reward");
-  results.push("PASS reward: select, Escape, collect once");
+  results.push("PASS reward: Escape preserves selection, background cancels, collect once");
   show("transfer");
   await delay(50);
   await click(".table-leave");
   check(!current.visit, "leave completes node");
   results.push("PASS leave: returns to map");
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const openPause = async () => {
+    flushSync(() => showPause(true));
+    const dialog = query(".pause-menu-dialog") as unknown as HTMLDialogElement;
+    check(dialog.open, "pause menu uses a modal dialog");
+    check(!dialog.querySelector(".close"), "pause menu has no close icon");
+    check(document.activeElement?.textContent?.trim() === "继续游戏", "resume receives focus");
+    if (!reduced) check(dialog.getAnimations().length > 0, "pause menu animates on entry");
+    await delay(250);
+    return dialog;
+  };
+  let dialog = await openPause();
+  query(".pause-menu-actions button").click();
+  check(dialog.open, "resume keeps the modal open until its exit completes");
+  await delay(220);
+  check(!document.querySelector(".pause-menu-dialog"), "resume closes after exit");
+  dialog = await openPause();
+  dialog.dispatchEvent(new Event("cancel", { cancelable: true }));
+  check(dialog.open, "Escape cancellation keeps the modal open during exit");
+  await delay(220);
+  check(!document.querySelector(".pause-menu-dialog"), "Escape closes after exit");
+  dialog = await openPause();
+  const rect = dialog.getBoundingClientRect();
+  const pointer = (x: number, y: number) => {
+    dialog.dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true, clientX: x, clientY: y }),
+    );
+    dialog.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: x, clientY: y }));
+  };
+  pointer(rect.left + 5, rect.top + 5);
+  await delay(220);
+  check(dialog.open, "dialog padding does not dismiss the pause menu");
+  pointer(rect.left - 5, rect.top - 5);
+  check(dialog.open, "backdrop dismiss waits for exit");
+  await delay(220);
+  check(!document.querySelector(".pause-menu-dialog"), "backdrop closes after exit");
+  dialog = await openPause();
+  const action = query(".pause-menu-actions button:last-child");
+  action.click();
+  action.click();
+  check(pauseActions === 0, "menu action waits for the exit animation");
+  await delay(220);
+  check(
+    pauseActions === 1 && !document.querySelector(".pause-menu-dialog"),
+    "rapid clicks execute the menu action once",
+  );
+  results.push(
+    "PASS pause: entry/exit motion, resume, Escape, backdrop, focus, deferred action once",
+  );
+  flushSync(showModalCheck);
+  const standard = query('.modal[aria-label="通用弹窗检查"]') as unknown as HTMLDialogElement;
+  check(
+    standard.open && (reduced || standard.getAnimations().length),
+    "shared modal animates on entry",
+  );
+  await delay(250);
+  query('.modal[aria-label="通用弹窗检查"] .close').click();
+  check(standard.open, "close icon waits for the exit animation");
+  await delay(220);
+  check(!standard.isConnected, "close icon removes the shared modal after exit");
+  flushSync(showSearch);
+  dialog = query(".deck-search-dialog") as unknown as HTMLDialogElement;
+  dialog.dispatchEvent(new Event("cancel", { cancelable: true }));
+  await delay(250);
+  check(dialog.open && !dialog.querySelector(".close"), "mandatory search cannot be dismissed");
+  query(".deck-search-grid button").click();
+  await delay(250);
+  dialog = query(".deck-search-dialog") as unknown as HTMLDialogElement;
+  check(
+    dialog.open && query(".deck-search-grid").children.length === 2,
+    "next search reopens after the first exit",
+  );
+  query(".deck-search-grid button").click();
+  await delay(250);
+  check(!document.querySelector(".deck-search-dialog"), "final search dismisses after exit");
+  results.push(
+    "PASS shared modal: close icon animation, mandatory choice, consecutive search dialogs",
+  );
   return results.join("\n");
 }
 export function Harness() {
@@ -194,7 +293,20 @@ export function Harness() {
   const [version, setVersion] = useState(0);
   const [report, setReport] = useState("");
   const [testing, setTesting] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [modalCheck, setModalCheck] = useState(false);
+  const [searchBattle, setSearchBattle] = useState<Battle | null>(null);
   useEffect(() => {
+    showPause = setPaused;
+    showModalCheck = () => setModalCheck(true);
+    showSearch = () => {
+      const battle = startBattle(initialDeck(), 1, 123);
+      battle.searches = [
+        { sourceId: "same-source", name: "检索" },
+        { sourceId: "same-source", name: "检索" },
+      ];
+      setSearchBattle(battle);
+    };
     show = (kind) =>
       flushSync(() => {
         current = sample(kind);
@@ -204,6 +316,30 @@ export function Harness() {
   }, []);
   return (
     <>
+      {modalCheck && (
+        <Modal label="通用弹窗检查" onClose={() => setModalCheck(false)}>
+          <h2>通用弹窗检查</h2>
+        </Modal>
+      )}
+      {searchBattle && (
+        <DeckSearch
+          battle={searchBattle}
+          onChoose={(id) => setSearchBattle(chooseSearch(searchBattle, id))}
+        />
+      )}
+      {paused && (
+        <PauseMenu
+          onClose={() => setPaused(false)}
+          actions={[
+            {
+              label: "检查操作",
+              onSelect: () => {
+                pauseActions++;
+              },
+            },
+          ]}
+        />
+      )}
       <nav
         style={{
           position: "fixed",

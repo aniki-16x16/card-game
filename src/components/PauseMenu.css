@@ -1,17 +1,17 @@
-.game-menu-dialog {
+.modal.pause-menu-dialog {
   width: 320px;
 }
-.game-menu-dialog h2 {
+.modal.pause-menu-dialog h2 {
   text-align: center;
   margin-bottom: 24px;
 }
-.game-menu-actions {
+.pause-menu-actions {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-.game-menu-actions button,
-.game-menu-actions a {
+.pause-menu-actions button,
+.pause-menu-actions a {
   display: block;
   padding: 13px 18px;
   background: #23362b;
@@ -22,12 +22,12 @@
   text-decoration: none;
   font-size: 14px;
 }
-.game-menu-actions button:hover,
-.game-menu-actions a:hover {
+.pause-menu-actions button:hover,
+.pause-menu-actions a:hover {
   background: #34482d;
 }
-.game-menu-actions button:focus-visible,
-.game-menu-actions a:focus-visible {
+.pause-menu-actions button:focus-visible,
+.pause-menu-actions a:focus-visible {
   outline: 2px solid #dcefb7;
   outline-offset: 3px;
 }

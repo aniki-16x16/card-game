@@ -1,0 +1,82 @@
+.modal {
+  width: 620px;
+  max-width: calc(100vw - 32px);
+  max-height: 85vh;
+  border: 1px solid #82986770;
+  border-radius: 12px;
+  background: #1b2c23;
+  color: #dce6cb;
+  padding: 32px;
+  box-shadow: 0 30px 120px #0008;
+}
+.modal::backdrop {
+  background: #06100bd9;
+  backdrop-filter: blur(6px);
+}
+.modal-content {
+  display: contents;
+}
+.modal .close {
+  position: absolute;
+  right: 13px;
+  top: 10px;
+  background: none;
+  font-size: 25px;
+  color: #8ba278;
+}
+.modal h2 {
+  font-size: 25px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  margin: 12px 0 23px;
+}
+.modal-description {
+  font-size: 12px;
+  line-height: 2;
+  color: #9baf8c;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 25px;
+}
+.animated-modal::backdrop {
+  animation: modal-backdrop-in 200ms ease-out both;
+}
+.animated-modal.is-closing::backdrop {
+  animation: modal-backdrop-out 160ms ease-in both;
+}
+@keyframes modal-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes modal-backdrop-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@media (max-width: 560px) {
+  .modal {
+    padding: 25px 20px;
+  }
+  .modal h2 {
+    font-size: 21px;
+  }
+  .modal-description {
+    font-size: 11px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animated-modal::backdrop,
+  .animated-modal.is-closing::backdrop {
+    animation-duration: 0s;
+  }
+}

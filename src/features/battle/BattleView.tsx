@@ -255,7 +255,7 @@ export function BattleView(props: Props) {
           </div>
         ))}
         <button className="rail-forge" disabled={settling} onClick={props.onForge}>
-          查看地图与牌组
+          查看地图
         </button>
         {(settling || card) && (
           <div className="combat-instruction" role="status">
