@@ -7,6 +7,24 @@ import { CardFace } from "../../components/cards/Cards";
 import type { BattleAction, Battle, BattleFrame } from "../../domain/game";
 import { attackPower } from "../../domain/game";
 
+// 受击调参入口：duration 单位为毫秒，越小反馈越快。
+// 卡牌摇晃和伤害数字同时播放，总耗时取两者中较大的 duration。
+const HIT = {
+  duration: 180, // 卡牌摇晃、闪亮并恢复的总时长（原为 460）。
+  shakeLeft: -9, // 第一次横向偏移（px），绝对值越大摇晃越强。
+  shakeRight: 7, // 回弹的横向偏移（px）。
+  impactOffset: 0.2, // 在总时长的 20% 处达到受击姿态。
+  reboundOffset: 0.45, // 在总时长的 45% 处达到回弹姿态。
+  flash: "brightness(1.8) sepia(.6)", // 受击时的亮度与暖色强度。
+  number: {
+    duration: 180, // 伤害数字出现、上浮、消失的总时长（原为 240）。
+    appearOffset: 0.2, // 数字完全显现的时间比例。
+    rise: 45, // 数字向上飘动的距离（px）。
+    startScale: 0.7, // 数字刚出现时的缩放倍数。
+    endScale: 1.15, // 数字消失时的缩放倍数。
+  },
+};
+
 const find = (id?: string) =>
   id ? document.querySelector<HTMLElement>(`[data-motion="${CSS.escape(id)}"]`) : null;
 
@@ -17,6 +35,9 @@ export async function animateBattleAction(
   retained?: (() => void)[],
   resolve = find,
 ) {
+  // 致死伤害仍保留规则快照，但跳过摇晃、闪亮和伤害数字，交给随后的 death 动作。
+  // lethal 由规则层判断，包含毒杀、反伤及断尾存活，不能只检查当前快照的 hp。
+  if (action.kind === "hit" && action.lethal) return;
   // 天平受击由 BalanceScale 的游标、亮起和刻度反馈统一呈现，不额外生成数字或震动。
   if (action.kind === "hit" && (action.target === "life-player" || action.target === "life-enemy"))
     return;
@@ -81,25 +102,31 @@ export async function animateBattleAction(
         run(
           number,
           [
-            { opacity: 0, transform: "translate(-50%,0) scale(.7)" },
-            { opacity: 1, offset: 0.2 },
-            { opacity: 0, transform: "translate(-50%,-45px) scale(1.15)" },
+            { opacity: 0, transform: `translate(-50%,0) scale(${HIT.number.startScale})` },
+            { opacity: 1, offset: HIT.number.appearOffset },
+            {
+              opacity: 0,
+              transform: `translate(-50%,-${HIT.number.rise}px) scale(${HIT.number.endScale})`,
+            },
           ],
-          240,
+          HIT.number.duration,
         ),
         run(
           target,
           [
             { transform: "translateX(0)", filter: "brightness(1)" },
             {
-              transform: reduced ? "none" : "translateX(-9px)",
-              filter: "brightness(1.8) sepia(.6)",
-              offset: 0.2,
+              transform: reduced ? "none" : `translateX(${HIT.shakeLeft}px)`,
+              filter: HIT.flash,
+              offset: HIT.impactOffset,
             },
-            { transform: reduced ? "none" : "translateX(7px)", offset: 0.45 },
+            {
+              transform: reduced ? "none" : `translateX(${HIT.shakeRight}px)`,
+              offset: HIT.reboundOffset,
+            },
             { transform: "translateX(0)", filter: "brightness(1)" },
           ],
-          460,
+          HIT.duration,
         ),
       ]);
     } else if (action.kind === "sacrifice" || action.kind === "effect") {
@@ -113,7 +140,8 @@ export async function animateBattleAction(
         300,
       );
     } else if (action.kind === "death") {
-      const tint = action.cause === "sacrificed" ? "sepia(1) saturate(2)" : "grayscale(1)";
+      // 所有死亡共用原献祭动画：翻转摇摆后缩小淡出，保留相同的暖色色调。
+      // 下方各关键帧的 duration（毫秒）控制每段速度；当前合计 450 毫秒。
       if (reduced) await run(target, [{ opacity: 1 }, { opacity: 0 }], 100);
       else
         await motion.tween(target, {
@@ -152,7 +180,7 @@ export async function animateBattleAction(
               rotateZ: -12,
               rotateX: -12,
               scale: 0.98,
-              filter: tint,
+              filter: "sepia(1) saturate(2)",
               duration: 55,
             },
             {

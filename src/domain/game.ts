@@ -402,6 +402,8 @@ export type BattleAction = {
   target: string;
   label: string;
   amount?: number;
+  /** 此次伤害将导致死亡（已考虑毒杀和断尾），展示层跳过受击动画。 */
+  lethal?: boolean;
   cause?: DeathCause;
   route?: "air" | "ground";
 };

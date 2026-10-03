@@ -1,6 +1,7 @@
 import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
+import { animateBattleAction } from "../src/features/battle/battleAnimation";
 import { useBattleController } from "../src/features/battle/useBattleController";
 import { BattleView } from "../src/features/battle/BattleView";
 import { DeckSearch } from "../src/features/battle/DeckSearch";
@@ -35,6 +36,88 @@ export function MotionCheck() {
   const battle = control.battle!;
   const [balanceReport, setBalanceReport] = useState("");
   const [entranceReport, setEntranceReport] = useState("");
+  const [hitDeathReport, setHitDeathReport] = useState("");
+  async function checkHitDeath() {
+    control.abort();
+    setHitDeathReport("RUNNING");
+    const state = sample();
+    const card = creature("squirrel", "target");
+    state.player[0][0] = { ...card, hp: 1 };
+    flushSync(() => control.setBattle(state));
+    const target = document.querySelector<HTMLElement>('[data-motion="player-0-0"]')!;
+    const originalStyle = target.style.cssText;
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const check = (value: unknown, message: string) => {
+      if (!value) throw new Error(message);
+    };
+    try {
+      const lethalStart = performance.now();
+      await animateBattleAction(
+        { kind: "hit", target: "player-0-0", amount: 1, lethal: true, label: "致死" },
+        new AbortController().signal,
+        state,
+      );
+      check(performance.now() - lethalStart < 80, "lethal hit still waits for motion");
+      check(!document.querySelector(".damage-number"), "lethal hit created a number");
+      check(target.style.cssText === originalStyle, "lethal hit changed the card pose");
+
+      const hitStart = performance.now();
+      const hit = animateBattleAction(
+        { kind: "hit", target: "player-0-0", amount: 1, lethal: false, label: "存活" },
+        new AbortController().signal,
+        state,
+      );
+      check(!!document.querySelector(".damage-number"), "surviving hit has no feedback");
+      await hit;
+      check(performance.now() - hitStart < 350, "surviving hit is too slow");
+      check(!document.querySelector(".damage-number"), "surviving hit leaked a number");
+
+      for (const cause of ["killed", "sacrificed", "expired"] as const) {
+        const retained: (() => void)[] = [];
+        let done = false,
+          sawWarmTint = false,
+          sawFade = false,
+          sawRotation = false;
+        const death = animateBattleAction(
+          { kind: "death", target: "player-0-0", cause, label: cause },
+          new AbortController().signal,
+          state,
+          retained,
+        ).then(() => {
+          done = true;
+        });
+        while (!done) {
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+          sawWarmTint ||= target.style.filter.includes("saturate");
+          sawFade ||= target.style.opacity !== "" && Number(target.style.opacity) < 1;
+          sawRotation ||= target.style.transform.includes("rotateZ");
+          check(!document.querySelector(".damage-number"), `${cause} played hit feedback`);
+        }
+        await death;
+        check(sawFade && target.style.opacity === "0", `${cause} did not fade out`);
+        if (!reduced) check(sawWarmTint && sawRotation, `${cause} differs from sacrifice motion`);
+        retained.forEach((cleanup) => cleanup());
+        check(target.style.cssText === originalStyle, `${cause} failed to restore styles`);
+      }
+
+      const abort = new AbortController();
+      const interrupted = animateBattleAction(
+        { kind: "hit", target: "player-0-0", amount: 1, label: "中断" },
+        abort.signal,
+        state,
+      );
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      abort.abort();
+      await interrupted;
+      check(target.style.cssText === originalStyle, "aborted hit retained a pose");
+      check(!document.querySelector(".damage-number"), "aborted hit leaked a number");
+      setHitDeathReport(
+        "PASS hit/death: lethal skips feedback, surviving hit <350ms, all deaths use sacrifice motion, abort clean",
+      );
+    } catch (error) {
+      setHitDeathReport(`FAIL ${error instanceof Error ? error.message : error}`);
+    }
+  }
   async function checkEntrance() {
     control.abort();
     setEntranceReport("RUNNING");
@@ -198,6 +281,10 @@ export function MotionCheck() {
     <div className="app-shell battle-mode">
       <main>
         <div style={{ position: "fixed", top: 0, left: "35%", zIndex: 200 }}>
+          <button disabled={hitDeathReport === "RUNNING"} onClick={() => void checkHitDeath()}>
+            运行受击死亡检查
+          </button>
+          <output aria-label="受击死亡检查结果">{hitDeathReport}</output>
           <button disabled={entranceReport === "RUNNING"} onClick={() => void checkEntrance()}>
             运行入场检查
           </button>

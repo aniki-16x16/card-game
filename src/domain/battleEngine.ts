@@ -191,6 +191,7 @@ export class BattleEngine {
       kind: "hit",
       target: slot(side, row, col),
       amount,
+      lethal: target.hp <= 0,
       label: `${label} · ${target.name} −${amount}`,
     });
     if (target.hp <= 0) this.remove(side, row, col, "killed");
@@ -397,6 +398,8 @@ export class BattleEngine {
       kind: "hit",
       target: slot(side, row, col),
       amount: damage,
+      lethal:
+        (defender.hp <= 0 || (damage > 0 && has(attacker, "poison"))) && !has(defender, "tail"),
       label: `${defender.name} ${damage ? `受到 ${damage} 点伤害` : "硬甲格挡"}`,
     });
     if (damage > 0 && has(attacker, "poison")) {
@@ -410,6 +413,7 @@ export class BattleEngine {
         kind: "hit",
         target: slot(sourceSide, sourceRow, sourceCol),
         amount: 1,
+        lethal: attacker.hp <= 0 && !has(attacker, "tail"),
         label: `${attacker.name} 受到荆棘反伤`,
       });
       this.rescue(sourceSide, sourceRow, sourceCol);
@@ -535,6 +539,7 @@ export class BattleEngine {
         kind: "hit",
         target: slot(side, row, col),
         amount: 1,
+        lethal: attacker.hp <= 0,
         label: `${attacker.name} 搏命 · 生命 −1`,
       });
       if (attacker.hp <= 0) {
