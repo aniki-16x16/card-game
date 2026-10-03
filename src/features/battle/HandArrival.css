@@ -1,0 +1,21 @@
+.hand-arrival {
+  animation: hand-arrive 0.3s ease-out both;
+}
+.hand-arrival-pending {
+  animation: none;
+  transform: translateY(100%);
+  visibility: hidden;
+}
+@keyframes hand-arrive {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hand-arrival {
+    animation: none;
+  }
+}

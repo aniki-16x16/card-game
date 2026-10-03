@@ -31,6 +31,7 @@ const quietBattle = () => ({
   deck: rulesDeck().slice(5),
   intents: [],
   enemyAI: undefined,
+  enemy: [Array(5).fill(null), Array(5).fill(null)],
   canDraw: false,
 });
 
@@ -283,7 +284,7 @@ test("enemy entry is left to right and a lethal hit stops the animation plan", (
   assert.equal(plan.state.status, "won");
 });
 
-test("all player attacks finish before enemy deployment and counterattack", () => {
+test("next-round enemy deployment follows both attack phases and cannot attack early", () => {
   const s = quietBattle();
   s.player[0][0] = unit(0, "left");
   s.player[0][4] = unit(0, "right");
@@ -300,7 +301,6 @@ test("all player attacks finish before enemy deployment and counterattack", () =
       ["attack", "enemy-0-0"],
       ["attack", "enemy-0-4"],
       ["deploy", "enemy-0-0"],
-      ["attack", "player-0-0"],
     ],
   );
   assert.equal(plan.state.balance, 6);
@@ -625,7 +625,7 @@ test("enemy generation and actual deployment are capped at one, including rebirt
   const plan = planRound(s);
   assert.equal(plan.frames.filter((f) => f.action.kind === "deploy").length, 1);
   assert.equal(plan.state.intents.length, 1);
-  assert.equal(plan.state.intents[0].card.id, "reborn");
+  assert.equal(plan.state.intents[0].card.id, "scheduled");
   const second = planRound(drawCard(plan.state, "squirrelDeck"));
   assert.equal(second.frames.filter((f) => f.action.kind === "deploy").length, 1);
 });

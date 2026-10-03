@@ -365,6 +365,8 @@ export class BattleEngine {
       if (defender && defender.hp > 0 && !defender.submerged && has(defender, "ambush"))
         this.act(other(side), defender.id);
     }
+    if (side === "enemy" && this.s.enemy[row][col]?.id === unit.id)
+      this.submergeUnit(side, row, col);
     this.checkEnd();
   }
   rescue(side: Side, row: number, col: number) {
@@ -642,12 +644,15 @@ export class BattleEngine {
     if (this.checkEnd()) return;
     for (let row = 0; row < 2; row++)
       for (let col = 0; col < 5; col++) {
-        const unit = this.s[side][row][col];
-        if (unit && unit.hp > 0 && has(unit, "submerge") && !unit.submerged) {
-          unit.submerged = true;
-          this.effect(side, row, col, `${unit.name} 潜入水中。`);
-        }
+        this.submergeUnit(side, row, col);
       }
+  }
+  private submergeUnit(side: Side, row: number, col: number) {
+    const unit = this.s[side][row][col];
+    if (unit && unit.hp > 0 && has(unit, "submerge") && !unit.submerged) {
+      unit.submerged = true;
+      this.effect(side, row, col, `${unit.name} 潜入水中。`);
+    }
   }
   turn(side: Side) {
     if (this.checkEnd()) return;

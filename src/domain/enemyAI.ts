@@ -14,6 +14,9 @@ export type EnemyAI = {
   hand: Card[];
   drawnRound: number;
   plannedRound?: number;
+  energy: number;
+  energyRound: number;
+  deployedRound?: number;
 };
 const has = (card: Card, sigil: Sigil) => sigils(card).includes(sigil);
 const living = (unit: Unit | null): unit is Unit => !!unit && unit.hp > 0;
@@ -54,7 +57,13 @@ export function createEnemy(
     [cards[slot], cards[index]] = [cards[index], cards[slot]];
   }
   return {
-    ai: { profile, hand: cards.slice(0, 5), drawnRound: 1 } satisfies EnemyAI,
+    ai: {
+      profile,
+      hand: cards.slice(0, 5),
+      drawnRound: 1,
+      energy: 0,
+      energyRound: 0,
+    } satisfies EnemyAI,
     deck: cards.slice(5),
   };
 }
@@ -259,29 +268,19 @@ export function scoreEnemyPlacement(
 ): number {
   if (!Number.isInteger(row) || !Number.isInteger(col) || row < 0 || row > 1 || col < 0 || col > 4)
     return -Infinity;
-  const occupied = state.enemy[row][col];
-  if (occupied) {
-    // Entry follows the player attack phase: a visibly doomed front can make room.
-    // The real resolver still requires a free square and never overwrites a survivor.
-    if (
-      row !== 0 ||
-      state.enemy[1][col] ||
-      has(occupied, "tail") ||
-      pressure(state, 0, col).danger - (has(occupied, "armor") ? 1 : 0) < occupied.hp
-    )
-      return -Infinity;
-  }
+  // Deployment precedes player attacks, so only currently empty squares are legal.
+  if (state.enemy[row][col]) return -Infinity;
   const unit = asUnit(card);
   if (unit.hp <= 0) return -Infinity;
+  // Newly deployed enemy divers hide before the player's attack phase.
+  if (has(unit, "submerge")) unit.submerged = true;
   const enemy = state.enemy.map((rank) => [...rank]);
   enemy[row][col] = unit;
   const projected = { ...state, enemy },
     weight = weights[profile];
   const attack = offense(projected, row, col),
     threat = pressure(projected, row, col);
-  // Submerged and returning attackers will vacate the defensive role before the next player attack.
-  const stays = has(unit, "submerge") || has(unit, "recall") || has(unit, "shortlived") ? 0.15 : 1;
-  const protection = threat.blocked * stays * (1 + Math.max(0, state.balance) / 5);
+  const protection = threat.blocked * (1 + Math.max(0, state.balance) / 5);
   const armor = has(unit, "armor") ? 1 : 0;
   const survives = Math.max(0, unit.hp - Math.max(0, threat.danger - armor));
   return (
@@ -314,7 +313,9 @@ function bestPlacement(state: Battle, cards: readonly Card[]) {
   return best;
 }
 export function chooseEnemySearch(state: Battle): Card | undefined {
-  const affordable = state.enemyDeck.filter((card) => card.cost <= enemyCostCeiling(state.round));
+  const affordable = state.enemyDeck.filter(
+    (card) => card.cost <= (state.enemyAI?.energy ?? enemyCostCeiling(state.round)),
+  );
   const pool = affordable.length ? affordable : state.enemyDeck;
   return (
     bestPlacement(state, pool)?.card ??
@@ -323,11 +324,15 @@ export function chooseEnemySearch(state: Battle): Card | undefined {
     )[0]
   );
 }
-// Mutates only a rule operation's private battle clone. The announced intent is locked for this round.
+// Mutates only a rule operation's private battle clone. Resource gain and planning happen once.
 export function planEnemyTurn(state: Battle): void {
   const ai = state.enemyAI;
   if (!ai || state.status !== "playing" || ai.plannedRound === state.round) return;
   ai.plannedRound = state.round;
+  if (ai.energyRound < state.round) {
+    ai.energy += state.round - ai.energyRound;
+    ai.energyRound = state.round;
+  }
   // Recover an entry whose two landing squares were blocked; cards are never discarded for a full board.
   for (const intent of state.intents)
     if (!ai.hand.some((card) => card.id === intent.card.id)) ai.hand.push(intent.card);
@@ -338,7 +343,7 @@ export function planEnemyTurn(state: Battle): void {
   }
   const candidate = bestPlacement(
     state,
-    ai.hand.filter((card) => card.cost <= enemyCostCeiling(state.round)),
+    ai.hand.filter((card) => card.cost <= ai.energy),
   );
   if (!candidate) return;
   ai.hand = ai.hand.filter((card) => card.id !== candidate.card.id);

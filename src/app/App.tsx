@@ -28,7 +28,7 @@ import {
   load,
   sigils,
   sigilDescription,
-  startBattle,
+  prepareBattle,
 } from "../domain/game";
 import type { Card, Unit } from "../domain/game";
 import "./App.css";
@@ -91,7 +91,7 @@ function Game() {
       const node = currentNode(next)!;
       if (isCombat(node.kind))
         setBattle(
-          startBattle(
+          prepareBattle(
             next.deck,
             node.floor,
             next.seed,
@@ -100,7 +100,7 @@ function Game() {
           ),
         );
       window.scrollTo({ top: 0 });
-    });
+    }, controller.begin);
   }
   function acceptRun(next: Adventure) {
     const apply = () => {
@@ -131,6 +131,7 @@ function Game() {
             battle={battle}
             selected={selected}
             settling={settling}
+            handReady={controller.handReady}
             onSelect={controller.select}
             onSacrifice={controller.sacrifice}
             onDraw={controller.draw}

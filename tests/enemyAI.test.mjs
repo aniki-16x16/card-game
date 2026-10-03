@@ -13,10 +13,14 @@ import {
   initialDeck,
   creature,
   startBattle,
+  prepareBattle,
   planRound,
+  planEnemyDeploy,
+  emptyBoard,
   planDeploy,
   planSearch,
   awaitingSearch,
+  selectSummon,
 } from "../src/domain/game.ts";
 import { BattleEngine } from "../src/domain/battleEngine.ts";
 import {
@@ -38,6 +42,10 @@ function scenario(profile, species) {
   const s = startBattle(initialDeck(), 1, 123, "normal", profile);
   s.enemyAI.hand = species.map((species, i) => creature(species, "candidate-" + i));
   s.enemyAI.plannedRound = 0;
+  s.enemyAI.deployedRound = 0;
+  s.enemyAI.energy = 1;
+  s.enemyAI.energyRound = 1;
+  s.enemy = emptyBoard();
   s.enemyDeck = [];
   s.intents = [];
   s.canDraw = false;
@@ -207,7 +215,7 @@ test("announced card and lane stay locked after player deployment, without a sec
   assert.deepEqual(s.intents[0], announced);
   assert.deepEqual(s.enemyDeck, deck);
   assert.deepEqual(s.enemyAI.hand, hand);
-  const plan = planRound(s);
+  const plan = planEnemyDeploy(s);
   const entries = plan.frames.filter(
     (f) => f.action.kind === "deploy" && f.action.source === `intent-${announced.card.id}`,
   );
@@ -237,50 +245,53 @@ test("a full enemy board retains its announced card and resumes from a real hand
     [...next.enemyAI.hand, ...next.intents.map((i) => i.card)].some((c) => c.id === "blocked"),
   );
 });
-test("bulwark prepares a replacement for a visibly doomed blocker and only enters the actual free square", () => {
+test("deployment rejects occupied squares even when the blocker will die during player attacks", () => {
   const s = scenario("bulwark", ["beetle"]);
   s.player[0][2] = unit("wolf", "threat");
   s.enemy[0][2] = unit("hedgehog", "doomed");
-  assert.deepEqual([intent(s).row, s.intents[0].col], [0, 2]);
-  const chosen = s.intents[0].card.id,
-    next = planRound(s).state;
-  assert.equal(next.enemy[0][2].id, chosen);
-  assert.equal(next.enemy[1][2], null);
+  assert.equal(scoreEnemyPlacement(s, s.enemyAI.hand[0], 0, 2), -Infinity);
+  const chosen = intent(s);
+  const next = planEnemyDeploy(s).state;
+  assert.equal(next.enemy[0][2].id, "doomed");
+  assert.equal(next.enemy[chosen.row][chosen.col].id, chosen.card.id);
   const rescued = scenario("bulwark", ["beetle"]);
   rescued.player[0][2] = unit("wolf", "threat");
   rescued.enemy[0][2] = unit("lizard", "tail", { hp: 1 });
   assert.equal(scoreEnemyPlacement(rescued, rescued.enemyAI.hand[0], 0, 2), -Infinity);
 });
-test("finite decks draw once per turn, never generate off-roster cards, and end after the last physical card", () => {
+test("finite decks draw once, pay for every planned card, and exhaust all physical cards", () => {
   for (const profile of Object.keys(ENEMIES)) {
-    const s = startBattle(initialDeck(), 1, 123, "normal", profile),
+    const s = scenario(profile, []),
+      enemy = createEnemy(123, 1, profile),
       played = [];
-    for (let round = 1; round <= 18; round++) {
-      if (round > 1) {
-        s.intents = [];
-        s.round = round;
-        planEnemyTurn(s);
-      }
+    s.enemyAI = enemy.ai;
+    s.enemyDeck = enemy.deck;
+    for (let round = 1; round <= 60; round++) {
+      s.round = round;
+      planEnemyTurn(s);
       assert.ok(s.intents.length <= 1);
       for (const arrival of s.intents) {
-        assert.ok(arrival.card.cost <= enemyCostCeiling(round));
+        assert.ok(arrival.card.cost <= s.enemyAI.energy);
+        s.enemyAI.energy -= arrival.card.cost;
         played.push(arrival.card);
       }
       const after = structuredClone(s);
       planEnemyTurn(s);
       assert.deepEqual(s, after);
+      s.intents = [];
+      if (!s.enemyAI.hand.length && !s.enemyDeck.length) break;
     }
     assert.equal(played.length, 18);
     assert.equal(new Set(played.map((c) => c.id)).size, 18);
     assert.deepEqual(played.map((c) => c.species).sort(), [...ENEMIES[profile].deck].sort());
-    s.intents = [];
-    s.round = 19;
+    s.round++;
     planEnemyTurn(s);
     assert.equal(s.enemyDeck.length, 0);
     assert.equal(s.enemyAI.hand.length, 0);
     assert.equal(s.intents.length, 0);
   }
 });
+
 test("enemy relay discounts real held cards, reinforcement consumes them once, and rebirth joins that same hand", () => {
   const s = scenario("colony", ["antqueen"]),
     e = new BattleEngine(s);
@@ -291,7 +302,8 @@ test("enemy relay discounts real held cards, reinforcement consumes them once, a
   }
   assert.equal(s.enemyAI.hand[0].cost, 1);
   assert.equal(intent(s).card.id, queenId);
-  const result = planRound(s);
+  const result = planEnemyDeploy(s);
+  assert.equal(result.state.enemyAI.energy, 0);
   const queen = result.state.enemy.flat().find((u) => u?.id === queenId);
   assert.equal(queen.cost, 3);
   const ready = scenario("renewal", ["rat"]),
@@ -344,4 +356,128 @@ test("search suspension replays the same enemy plan and hidden hand without dupl
   assert.deepEqual(final.state.enemyDeck, reserve);
   assert.deepEqual(final.state.intents, incoming);
   assert.equal(final.state.hand.filter((c) => c.id === "chosen").length, 1);
+});
+
+test("opening enemy deployment is visible before player deployment and player attacks precede enemy attacks", () => {
+  const opening = startBattle(initialDeck(), 1, 123);
+  assert.equal(opening.enemy.flat().filter(Boolean).length, 1);
+  assert.equal(opening.enemyAI.deployedRound, 1);
+  assert.equal(opening.intents.length, 0);
+
+  const s = scenario("pack", ["beetle"]);
+  const deployed = planEnemyDeploy(s).state;
+  const [row, col] = [0, deployed.enemy[0].findIndex(Boolean)];
+  const enemy = deployed.enemy[row][col];
+  assert.ok(enemy);
+  enemy.native = [];
+  enemy.attack = 1;
+  enemy.hp = enemy.health = 5;
+  deployed.hand = [creature("squirrel", "player-entry")];
+  const placement = planDeploy(selectSummon(deployed, "player-entry"), "player-entry", row, col);
+  const player = placement.state.player[row][col];
+  player.attack = 1;
+  player.hp = player.health = 5;
+  const combat = planRound(placement.state);
+  assert.deepEqual(
+    combat.frames.filter((f) => f.action.kind === "attack").map((f) => f.action.source),
+    [`player-${row}-${col}`, `enemy-${row}-${col}`],
+  );
+  assert.equal(combat.state.balance, 0, "new enemy blocks the player's first attack");
+  assert.equal(combat.state.enemy[row][col].hp, 4);
+  assert.equal(combat.state.player[row][col].hp, 4);
+});
+
+test("preparing a battle leaves enemies and energy untouched until opening deployment runs", () => {
+  const prepared = prepareBattle(initialDeck(), 1, 123, "normal", "reef");
+  const before = structuredClone(prepared);
+  assert.equal(prepared.enemy.flat().filter(Boolean).length, 0);
+  assert.equal(prepared.enemyAI.energy, 0);
+  assert.equal(prepared.enemyAI.deployedRound, undefined);
+  assert.equal(prepared.enemyAI.hand.length, 5);
+  const plan = planEnemyDeploy(prepared);
+  assert.deepEqual(prepared, before);
+  assert.equal(plan.frames[0].action.kind, "deploy");
+  assert.equal(plan.state.enemy.flat().filter(Boolean).length, 1);
+  assert.equal(plan.state.enemy.flat().find(Boolean).submerged, true);
+  assert.equal(planEnemyDeploy(plan.state).state, plan.state);
+});
+
+test("energy banks one per round and two-cost cards require a saving round between deployments", () => {
+  let s = scenario("pack", ["wolf", "wolf", "wolf"]);
+  s.enemyAI.energy = 0;
+  s.enemyAI.energyRound = 0;
+  const rounds = [],
+    balances = [];
+  for (let round = 1; round <= 6; round++) {
+    s.round = round;
+    s.enemy = emptyBoard();
+    const before = structuredClone(s);
+    const plan = planEnemyDeploy(s);
+    assert.deepEqual(s, before);
+    s = plan.state;
+    if (plan.frames.some((f) => f.action.kind === "deploy")) rounds.push(round);
+    balances.push(s.enemyAI.energy);
+    assert.equal(planEnemyDeploy(s).state, s, "cannot gain or spend twice in one round");
+  }
+  assert.deepEqual(rounds, [2, 4, 6]);
+  assert.deepEqual(balances, [1, 0, 1, 0, 1, 0]);
+});
+
+test("free deployments bank energy, full boards spend nothing, and failed survival still pays entry cost", () => {
+  const free = scenario("pack", ["ant"]);
+  const freePlan = planEnemyDeploy(free);
+  assert.equal(freePlan.state.enemyAI.energy, 1);
+  assert.equal(freePlan.state.enemy.flat().filter(Boolean).length, 1);
+  const blocked = scenario("pack", ["wolf"]);
+  blocked.enemyAI.energy = 2;
+  for (let row = 0; row < 2; row++)
+    for (let col = 0; col < 5; col++) blocked.enemy[row][col] = unit("beetle", `${row}-${col}`);
+  const full = planEnemyDeploy(blocked);
+  assert.equal(full.frames.length, 0);
+  assert.equal(full.state.enemyAI.energy, 2);
+  assert.equal(full.state.enemyAI.hand.length, 1);
+  const ambush = scenario("pack", []);
+  ambush.intents = [{ card: creature("hound", "entry"), row: 0, col: 2, costGated: true }];
+  ambush.enemyAI.plannedRound = 1;
+  ambush.player[0][2] = unit("crocodile", "ambush");
+  const dead = planEnemyDeploy(ambush);
+  assert.equal(dead.state.enemyAI.energy, 0);
+  assert.equal(dead.state.enemy[0][2], null);
+  assert.ok(dead.frames.some((f) => f.action.kind === "death"));
+});
+
+test("search paused during enemy attacks resumes without duplicating next-round energy or deployment", () => {
+  const s = scenario("pack", ["wolf"]);
+  s.enemyAI.deployedRound = 1;
+  s.enemyAI.plannedRound = 1;
+  s.enemyAI.energy = 1;
+  s.player[0][0] = unit("mouse", "victim");
+  s.enemy[0][0] = unit("wolf", "foe", { native: [], hp: 5, health: 5 });
+  const responder = creature("beetle", "responder");
+  Object.assign(responder, { native: ["search", "reinforce"], attack: 0, health: 5 });
+  s.hand = [responder];
+  s.deck = [creature("quail", "chosen")];
+  const paused = planRound(s);
+  assert.ok(awaitingSearch(paused.state));
+  assert.equal(paused.state.round, 1);
+  assert.equal(paused.state.enemyAI.energy, 1);
+  const resumed = planSearch(paused.state, "chosen");
+  assert.equal(resumed.state.round, 2);
+  assert.equal(resumed.state.enemyAI.energy, 0);
+  assert.equal(resumed.state.enemyAI.deployedRound, 2);
+  assert.equal(
+    resumed.frames.filter(
+      (f) => f.action.kind === "deploy" && f.action.source === "intent-candidate-0",
+    ).length,
+    1,
+  );
+  assert.equal(
+    new Set(
+      resumed.state.enemy
+        .flat()
+        .filter(Boolean)
+        .map((u) => u.id),
+    ).size,
+    2,
+  );
 });

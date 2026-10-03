@@ -19,6 +19,7 @@ const setup = () => {
   const s = startBattle(initialDeck(), 1, 123);
   s.intents = [];
   s.enemyAI = undefined;
+  s.enemy = [Array(5).fill(null), Array(5).fill(null)];
   s.hand = [];
   s.canDraw = false;
   const frames = [];

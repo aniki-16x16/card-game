@@ -14,6 +14,7 @@ type Props = {
   battle: Battle;
   selected: string | null;
   settling: boolean;
+  handReady?: boolean;
   onSelect: (id: string | null) => void;
   onDeploy: (row: number, col: number) => void;
   onSacrifice: (id: string) => void;
@@ -257,6 +258,7 @@ export function BattleView(props: Props) {
         available={availableSacrifices}
         disabled={settling || locked || battle.status !== "playing"}
         settling={settling}
+        arrival={props.handReady}
         onSelect={props.onSelect}
         onInspect={onInspect}
       />

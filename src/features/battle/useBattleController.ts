@@ -4,6 +4,7 @@ import {
   drawCard,
   markSacrifice,
   planDeploy,
+  planEnemyDeploy,
   planRound,
   planSearch,
   selectSummon,
@@ -13,18 +14,25 @@ import { animateBattleAction } from "./battleAnimation";
 import { prepareBattlePresentation } from "./battlePresentation";
 import { presentationQueue } from "./presentationQueue";
 
+const awaitingDeployment = (state: Battle) =>
+  !!state.enemyAI && state.enemyAI.deployedRound !== state.round;
+
 export function useBattleController(initial: Battle | null = null) {
   const [battle, renderBattle] = useState(initial);
   const current = useRef(initial);
   const [settling, setSettling] = useState(false);
   const [pending, setPending] = useState(0);
   const [actionLabel, setActionLabel] = useState("");
+  const [handReady, setHandReady] = useState(!initial || !awaitingDeployment(initial));
   const playing = useRef(false);
   const controllers = useRef(new Set<AbortController>());
   const queue = useRef(presentationQueue());
   const generation = useRef(0);
   const setBattle = (next: Battle | null) => {
     current.current = next;
+    // Only a newly prepared battle waits for its scene reveal; round frames keep the hand visible.
+    if (!next?.enemyAI || next.enemyAI.deployedRound !== undefined) setHandReady(true);
+    else setHandReady(false);
     renderBattle(next);
   };
   function abort() {
@@ -114,27 +122,37 @@ export function useBattleController(initial: Battle | null = null) {
   return {
     battle,
     setBattle,
-    settling,
+    settling: settling || (!!battle && awaitingDeployment(battle)),
     pending: pending > 0,
-    actionLabel,
+    handReady,
+    actionLabel: actionLabel || (battle && awaitingDeployment(battle) ? "敌方部署" : ""),
     abort,
+    begin() {
+      const state = current.current;
+      if (state && awaitingDeployment(state) && !playing.current) {
+        flushSync(() => setHandReady(true));
+        void playRoundPlan(planEnemyDeploy(state));
+      }
+    },
     select(id: string | null) {
-      if (current.current && !playing.current) setBattle(selectSummon(current.current, id));
+      if (current.current && !playing.current && !awaitingDeployment(current.current))
+        setBattle(selectSummon(current.current, id));
     },
     draw(pile: DrawPile) {
-      if (current.current && !playing.current) setBattle(drawCard(current.current, pile));
+      if (current.current && !playing.current && !awaitingDeployment(current.current))
+        setBattle(drawCard(current.current, pile));
     },
     sacrifice(id: string) {
-      if (current.current && !playing.current)
+      if (current.current && !playing.current && !awaitingDeployment(current.current))
         present(current.current, markSacrifice(current.current, id));
     },
     deploy(row: number, col: number) {
       const state = current.current;
-      if (state?.summon && !playing.current)
+      if (state?.summon && !playing.current && !awaitingDeployment(state))
         present(state, planDeploy(state, state.summon.cardId, row, col));
     },
     end() {
-      if (!current.current || playing.current) return;
+      if (!current.current || playing.current || awaitingDeployment(current.current)) return;
       const plan = planRound(current.current);
       if (plan.state !== current.current) void playRoundPlan(plan, true);
     },
@@ -142,7 +160,11 @@ export function useBattleController(initial: Battle | null = null) {
       const state = current.current;
       if (!state || playing.current) return;
       const plan = planSearch(state, id);
-      if (state.continuation?.operation.kind === "round") void playRoundPlan(plan);
+      if (
+        state.continuation?.operation.kind === "round" ||
+        state.continuation?.operation.kind === "enemyDeploy"
+      )
+        void playRoundPlan(plan);
       else present(state, plan);
     },
   };

@@ -97,7 +97,8 @@ export const SIGILS: Record<Sigil, { name: string; weight: number; description: 
   submerge: {
     name: "潜水",
     weight: 1,
-    description: "己方回合结束后潜水，敌方攻击视此位置为空地；己方回合开始时浮出。",
+    description:
+      "己方回合结束后潜水，敌方攻击视此位置为空地；己方回合开始时浮出。敌方生物登场后立即潜水。",
   },
   shove: {
     name: "推搡",

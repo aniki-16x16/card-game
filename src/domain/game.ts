@@ -26,6 +26,7 @@ export type DrawPile = "deck" | "squirrelDeck";
 export type DeathCause = "killed" | "sacrificed" | "expired";
 type BattleOperation =
   | { kind: "round" }
+  | { kind: "enemyDeploy" }
   | { kind: "deploy"; id: string; row: number; col: number }
   | { kind: "sacrifice"; id: string };
 export type Battle = {
@@ -90,14 +91,16 @@ export function getIntents(
 ): Intent[] {
   if (!Number.isSafeInteger(round) || round < 1) return [];
   // Standalone empty-board preview; live combat plans against its actual board.
-  const state = startBattle([], encounter, mapSeed, difficulty);
-  for (let r = 2; r <= round; r++) {
-    state.intents = [];
+  const state = prepareBattle([], encounter, mapSeed, difficulty);
+  for (let r = 1; r <= round; r++) {
     if (!state.enemyAI!.hand.length && !state.enemyDeck.length) return [];
     state.round = r;
     planEnemyTurn(state);
+    if (r === round) return state.intents;
+    for (const intent of state.intents) state.enemyAI!.energy -= intent.card.cost;
+    state.intents = [];
   }
-  return state.intents;
+  return [];
 }
 export const awaitingSearch = (state: Battle) =>
   state.status === "playing" && !!state.searches?.length && !!state.deck.length;
@@ -161,9 +164,11 @@ function executeOperation(
     const result =
       operation.kind === "round"
         ? resolveRoundCore(input, recorder)
-        : operation.kind === "deploy"
-          ? deployCore(input, operation.id, operation.row, operation.col, recorder)
-          : markSacrificeCore(input, operation.id, recorder);
+        : operation.kind === "enemyDeploy"
+          ? enemyDeployCore(input, recorder)
+          : operation.kind === "deploy"
+            ? deployCore(input, operation.id, operation.row, operation.col, recorder)
+            : markSacrificeCore(input, operation.id, recorder);
     // Preserve identity on invalid actions, so callers never animate a no-op.
     if (result === input) return initial;
     delete result.searchAnswers;
@@ -185,6 +190,18 @@ function executeOperation(
   }
 }
 export function startBattle(
+  cards: Card[],
+  encounter = 1,
+  mapSeed = MAP_SEED,
+  difficulty: Battle["difficulty"] = "normal",
+  profile?: EnemyProfile,
+): Battle {
+  const state = prepareBattle(cards, encounter, mapSeed, difficulty, profile);
+  deployEnemyTurn(state, new BattleEngine(state));
+  return state;
+}
+// Prepare the empty table during the scene transition; presentation starts deployment afterwards.
+export function prepareBattle(
   cards: Card[],
   encounter = 1,
   mapSeed = MAP_SEED,
@@ -216,7 +233,6 @@ export function startBattle(
     fatigue: 0,
     encounter,
   };
-  planEnemyTurn(state);
   return state;
 }
 export function getRewards(mapSeed: number, encounter: number): Card[] {
@@ -401,6 +417,48 @@ export type Recorder = (action: BattleAction, state: Battle) => void;
 export function resolveRound(state: Battle, record?: Recorder): Battle {
   return executeOperation(state, { kind: "round" }, record);
 }
+// Also used by authored scenarios to run the same deployment rules as a live round start.
+export function planEnemyDeploy(state: Battle): { frames: BattleFrame[]; state: Battle } {
+  const frames: BattleFrame[] = [];
+  const result = executeOperation(state, { kind: "enemyDeploy" }, (action, snapshot) =>
+    frames.push({ action, state: snapshot }),
+  );
+  return { frames, state: result };
+}
+function enemyDeployCore(state: Battle, record?: Recorder): Battle {
+  if (
+    state.status !== "playing" ||
+    awaitingSearch(state) ||
+    state.enemyAI?.deployedRound === state.round
+  )
+    return state;
+  const s = structuredClone(state);
+  deployEnemyTurn(s, new BattleEngine(s, record, true));
+  return s;
+}
+function deployEnemyTurn(s: Battle, engine: BattleEngine): void {
+  if (engine.checkEnd() || s.enemyAI?.deployedRound === s.round) return;
+  planEnemyTurn(s);
+  const ai = s.enemyAI;
+  if (ai) ai.deployedRound = s.round;
+  const arriving = [...s.intents]
+    .filter((intent) =>
+      ai
+        ? intent.card.cost <= ai.energy
+        : !intent.costGated || intent.card.cost <= enemyCostCeiling(s.round),
+    )
+    .sort((a, b) => a.col - b.col || b.row - a.row)
+    .slice(0, 1);
+  for (const intent of arriving) {
+    const row = !s.enemy[intent.row][intent.col] ? intent.row : 1 - intent.row;
+    if (!s.enemy[row][intent.col]) {
+      s.intents = s.intents.filter((ready) => ready !== intent);
+      // Pay the held (possibly discounted) cost, before entry effects restore base cost.
+      if (ai) ai.energy -= intent.card.cost;
+      engine.place(intent.card, "enemy", row, intent.col, "intent-" + intent.card.id);
+    } else s.log.unshift(`第 ${intent.col + 1} 列已满，敌方 ${intent.card.name} 等待落点。`);
+  }
+}
 function resolveRoundCore(state: Battle, record?: Recorder): Battle {
   if (
     state.status !== "playing" ||
@@ -412,21 +470,8 @@ function resolveRoundCore(state: Battle, record?: Recorder): Battle {
   const s = structuredClone(state);
   s.summon = null;
   const engine = new BattleEngine(s, record, true);
-  const arriving = [...s.intents]
-    .filter((intent) => !intent.costGated || intent.card.cost <= enemyCostCeiling(s.round))
-    .sort((a, b) => a.col - b.col || b.row - a.row)
-    .slice(0, 1);
   engine.cleanup();
   engine.turn("player");
-  if (engine.checkEnd()) return s;
-  engine.beginTurn("enemy");
-  for (const intent of arriving.filter((intent) => s.intents.includes(intent))) {
-    const row = !s.enemy[intent.row][intent.col] ? intent.row : 1 - intent.row;
-    if (!s.enemy[row][intent.col]) {
-      s.intents = s.intents.filter((ready) => ready !== intent);
-      engine.place(intent.card, "enemy", row, intent.col, "intent-" + intent.card.id);
-    } else s.log.unshift(`第 ${intent.col + 1} 列已满，敌方 ${intent.card.name} 等待落点。`);
-  }
   if (engine.checkEnd()) return s;
   engine.turn("enemy");
   if (engine.checkEnd()) return s;
@@ -447,7 +492,7 @@ function resolveRoundCore(state: Battle, record?: Recorder): Battle {
   }
   if (!engine.checkEnd()) {
     engine.startRound();
-    planEnemyTurn(s);
+    deployEnemyTurn(s, engine);
   }
   s.log = s.log.slice(0, 60);
   return s;

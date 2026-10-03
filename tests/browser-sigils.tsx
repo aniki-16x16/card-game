@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { BattleView } from "../src/features/battle/BattleView";
 import { DeckSearch } from "../src/features/battle/DeckSearch";
-import { ENEMIES, planEnemyTurn } from "../src/domain/enemyAI";
+import { ENEMIES, createEnemy } from "../src/domain/enemyAI";
 import type { EnemyProfile } from "../src/domain/enemyAI";
 import { animateBattleAction } from "../src/features/battle/battleAnimation";
 import {
@@ -12,6 +12,7 @@ import {
   initialDeck,
   markSacrifice,
   planDeploy,
+  planEnemyDeploy,
   planRound,
   planSearch,
   selectSummon,
@@ -36,6 +37,7 @@ const scenes = [
   "移动接力",
   "群势接力",
   "归巢",
+  "能量节奏",
   ...Object.values(ENEMIES).map((enemy) => enemy.name),
 ] as const;
 type Scene = (typeof scenes)[number];
@@ -44,6 +46,24 @@ function unit(species: Species, id: string, patch: Partial<Unit> = {}): Unit {
   return { ...card, hp: card.health, age: 0, used: [], base: structuredClone(card), ...patch };
 }
 function sample(scene: Scene): Battle {
+  if (scene === "能量节奏") {
+    const s = startBattle(initialDeck(), 1, 123, "normal", "pack");
+    s.enemy = [Array(5).fill(null), Array(5).fill(null)];
+    s.enemyAI = createEnemy(123, 1, "pack").ai;
+    s.enemyAI.hand = [0, 1, 2].map((i) => creature("wolf", `energy-wolf-${i}`));
+    s.enemyDeck = [];
+    s.intents = [];
+    s.hand = [];
+    s.canDraw = false;
+    for (let col = 0; col < 5; col++)
+      s.player[0][col] = unit("beetle", `guard-${col}`, {
+        attack: 0,
+        health: 100,
+        hp: 100,
+        native: [],
+      });
+    return planEnemyDeploy(s).state;
+  }
   const profile = (Object.keys(ENEMIES) as EnemyProfile[]).find(
     (profile) => ENEMIES[profile].name === scene,
   );
@@ -51,15 +71,13 @@ function sample(scene: Scene): Battle {
     const s = startBattle(initialDeck(), 1, 123, "normal", profile);
     s.canDraw = false;
     s.player[0][2] = unit("wolf", "threat");
-    s.enemyAI!.plannedRound = 0;
-    // Re-plan only while authoring this fixed scenario, before the player can act.
-    planEnemyTurn(s);
     return s;
   }
   const s = startBattle(initialDeck(), 1, 123);
   s.canDraw = false;
   s.intents = [];
   s.enemyAI = undefined;
+  s.enemy = [Array(5).fill(null), Array(5).fill(null)];
   s.hand = [];
   if (scene === "挖洞") {
     s.player[0][2] = unit("mouse", "attacker");
@@ -165,6 +183,12 @@ export function SigilCheck() {
           重置场景
         </button>
         <output aria-label="播放结果">{result}</output>
+        {scene === "能量节奏" && (
+          <output aria-label="能量检查">
+            回合 {battle.round} · 能量 {battle.enemyAI?.energy} · 敌方单位{" "}
+            {battle.enemy.flat().filter(Boolean).length}
+          </output>
+        )}
       </nav>
       <div style={{ minHeight: 0 }}>
         <BattleView

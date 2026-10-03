@@ -23,6 +23,7 @@ const setup = () => {
   s.hand = [];
   s.intents = [];
   s.enemyAI = undefined;
+  s.enemy = [Array(5).fill(null), Array(5).fill(null)];
   s.canDraw = false;
   const frames = [],
     e = new BattleEngine(s, (action, state) => frames.push({ action, state }));
@@ -124,6 +125,42 @@ test("submerge protects from all attack routes while allowing direct life damage
       assert.equal(s[enemy][0][2].hp, 1);
       assert.equal(s[enemy][1][2].hp, 1);
     }
+});
+
+test("enemy divers submerge on entry, bypass the first player attack, and surface for their own attack", () => {
+  const { s, e, frames } = setup();
+  e.place(creature("carp", "new-diver"), "enemy", 0, 2);
+  assert.equal(s.enemy[0][2].submerged, true);
+  assert.deepEqual(
+    frames.map((f) => f.action.kind),
+    ["deploy", "effect"],
+  );
+  assert.equal(frames[1].state.enemy[0][2].submerged, true);
+  s.player[0][2] = unit("mouse", "attacker");
+  e.turn("player");
+  assert.equal(s.enemy[0][2].hp, 3);
+  assert.equal(s.balance, 1);
+  e.turn("enemy");
+  const attack = frames.find((f) => f.action.kind === "attack" && f.action.source === "enemy-0-2");
+  assert.equal(attack.state.enemy[0][2].submerged, false);
+  assert.equal(s.enemy[0][2].submerged, true);
+});
+
+test("transferred submerge applies to enemy rear and reinforcement entries while player entries stay surfaced", () => {
+  const { s, e } = setup();
+  const rear = creature("owl", "rear");
+  rear.added = ["submerge"];
+  e.place(rear, "enemy", 1, 3);
+  assert.equal(s.enemy[1][3].submerged, true);
+  const responder = creature("rat", "responder");
+  responder.added = ["submerge"];
+  s.intents = [{ card: responder, row: 0, col: 2 }];
+  s.enemy[0][2] = unit("mouse", "victim");
+  e.remove("enemy", 0, 2, "killed");
+  assert.equal(s.enemy[0][2].id, "responder");
+  assert.equal(s.enemy[0][2].submerged, true);
+  e.place(creature("carp", "player-diver"), "player", 0, 0);
+  assert.equal(s.player[0][0].submerged, undefined);
 });
 
 test("submerged front leaves rear untouched and submerged rear takes no overflow", () => {

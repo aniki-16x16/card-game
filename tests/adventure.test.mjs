@@ -229,6 +229,7 @@ test("full route runs through rewards and events to boss completion; loss preven
 test("scale starts neutral, cancels damage and ends immediately at positive or negative ten", () => {
   const s = startBattle(rulesDeck(), 1, 1);
   s.intents = [];
+  s.enemy = [Array(5).fill(null), Array(5).fill(null)];
   const e = new BattleEngine(s);
   s.player[0][0] = { ...creature("wolf", "p"), attack: 7, hp: 3 };
   s.enemy[0][1] = { ...creature("wolf", "e"), attack: 4, hp: 3 };
@@ -258,6 +259,7 @@ test("boss and elite share normal cards and one arrival; fatigue moves scale", (
       assert.deepEqual(getIntents(round, 18, 1, kind), getIntents(round, 18, 1, "normal"));
   const s = startBattle(rulesDeck(), 1, 1);
   s.intents = [];
+  s.enemy = [Array(5).fill(null), Array(5).fill(null)];
   s.deck = [];
   s.squirrelDeck = [];
   s.balance = -9;

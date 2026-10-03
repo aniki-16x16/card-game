@@ -259,7 +259,7 @@ export function RitualEvent({
           </HoldSeal>
         )}
         {picking && !visit.done && (
-          <div className="event-hand" key={picking}>
+          <div className="event-hand hand-arrival" key={picking}>
             <BattleHand
               cards={choices}
               selected={null}

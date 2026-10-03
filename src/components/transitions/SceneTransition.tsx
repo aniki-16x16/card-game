@@ -24,7 +24,7 @@ export function SceneTransitionProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const start = useCallback((commit: () => void) => {
+  const start = useCallback((commit: () => void, onComplete?: () => void) => {
     if (locked.current || !mounted.current) return;
     locked.current = true;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -32,6 +32,7 @@ export function SceneTransitionProvider({ children }: { children: ReactNode }) {
     const overlay = dialog.current!;
     const coverEffect = randomTransition();
     const revealEffect = randomTransition();
+    let completed = false;
 
     function draw(effect: ReturnType<typeof randomTransition>, coverage: number) {
       const width = window.innerWidth,
@@ -90,6 +91,7 @@ export function SceneTransitionProvider({ children }: { children: ReactNode }) {
         });
         if (!mounted.current) return;
         await wave(false);
+        completed = mounted.current;
       } catch (error) {
         if (mounted.current) console.error("场景过渡失败", error);
       } finally {
@@ -98,7 +100,8 @@ export function SceneTransitionProvider({ children }: { children: ReactNode }) {
         if (mounted.current) {
           overlay.close();
           locked.current = false;
-          setActive(false);
+          flushSync(() => setActive(false));
+          if (completed) onComplete?.();
         }
       }
     })();

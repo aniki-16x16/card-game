@@ -3,6 +3,7 @@ import { animate } from "animejs";
 import { CardFace } from "../../components/cards/Cards";
 import type { Card, Unit } from "../../domain/game";
 import { handLayout } from "./handLayout";
+import "./HandArrival.css";
 
 type Props = {
   cards: Card[];
@@ -10,6 +11,7 @@ type Props = {
   available: number;
   disabled: boolean;
   settling: boolean;
+  arrival?: boolean;
   onSelect: (id: string | null) => void;
   onInspect: (card: Card | Unit) => void;
   emptyText?: string;
@@ -21,6 +23,7 @@ export function BattleHand({
   available,
   disabled,
   settling,
+  arrival,
   onSelect,
   onInspect,
   emptyText = "手牌已空 · 从右侧牌堆选择抽牌",
@@ -38,11 +41,13 @@ export function BattleHand({
   }, []);
   useLayoutEffect(() => {
     // Keep the actual hovered/selected pose until the flight takes ownership.
-    if (settling || !root.current) return;
+    if (!root.current) return;
     const layout = handLayout(cards.length, root.current.clientWidth || width, active);
     const animations = Array.from(
       root.current.querySelectorAll<HTMLElement>(".combat-hand-card"),
     ).flatMap((element, index) => {
+      // New hands need their fan layout while waiting; existing flight poses stay frozen.
+      if (settling && element.dataset.handPlaced) return [];
       const pose = layout[index];
       element.style.width = `${pose.width}px`;
       element.style.marginLeft = `${-pose.width / 2}px`;
@@ -69,7 +74,7 @@ export function BattleHand({
   return (
     <section
       ref={root}
-      className="combat-hand fan-hand"
+      className={`combat-hand fan-hand ${arrival === undefined ? "" : `hand-arrival ${arrival ? "" : "hand-arrival-pending"}`}`}
       aria-label="你的手牌"
       onPointerLeave={() => {
         if (!settling) setHovered(null);

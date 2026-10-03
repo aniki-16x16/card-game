@@ -27,6 +27,7 @@ const setup = () => {
   s.hand = [];
   s.intents = [];
   s.enemyAI = undefined;
+  s.enemy = [Array(5).fill(null), Array(5).fill(null)];
   s.deck = [];
   s.enemyDeck = [];
   s.canDraw = false;

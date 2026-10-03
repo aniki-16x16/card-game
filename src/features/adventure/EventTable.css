@@ -242,18 +242,9 @@
   right: max(20px, calc((100vw - 1000px) / 2));
   bottom: 0;
   height: 190px;
-  animation: hand-arrive 0.3s ease-out both;
 }
 .event-hand .fan-hand.combat-hand {
   height: 100%;
-}
-@keyframes hand-arrive {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
 }
 .event-table .reward-choice {
   max-width: 760px;
@@ -311,8 +302,7 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .event-arrival,
-  .event-hand {
+  .event-arrival {
     animation: none;
   }
   .event-arrival {
